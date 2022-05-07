@@ -36,7 +36,6 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
         net.eval()
 
     t0 = time.time()
-    t_train_per_step = []
     data_idx = 0
     loss_accu, mae_accu = 0, 0
     for data in dataloader:
@@ -76,7 +75,6 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
     log_metric(mode+'MAEEpoch', mae_accu/len(dataloader), epoch_idx)
 
 
-
 def run(args):
     mypath = PFTPath(id, check_id_dir=False, space=args.ct_sp)
     device = torch.device("cuda")
@@ -103,8 +101,6 @@ def run(args):
         if i % args.valid_period == 0:  # run the validation
             step('valid', net, data_dt['valid'], loss_fun, opt, i)
             step('test', net, data_dt['test'], loss_fun, opt, i)
-
-
     print('Finish all things!')
 
 if __name__ == "__main__":
