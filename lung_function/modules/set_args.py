@@ -21,7 +21,7 @@ def get_args():
                         default=1024)
     parser.add_argument('--total_folds', choices=(4, 5), help='4-fold training', type=int, default=4)
     parser.add_argument('--fold', choices=(1, 2, 3, 4), help='1 to 4', type=int, default=1)
-    parser.add_argument('--valid_period', help='how many epochs between 2 validation', type=int, default=10)
+    parser.add_argument('--valid_period', help='how many epochs between 2 validation', type=int, default=5)
     parser.add_argument('--workers', help='number of workers for dataloader', type=int, default=6)
     parser.add_argument('--loss', choices=('mse', 'mae', 'smooth_mae', 'mse+mae', 'msehigher'), help='mode', type=str,
                         default='mse')
@@ -31,7 +31,7 @@ def get_args():
                         default=0.0001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
 
-    parser.add_argument('--batch_size', help='batch_size', type=int, default=)
+    parser.add_argument('--batch_size', help='batch_size', type=int, default=5)
     parser.add_argument('--ct_sp', help='space', type=str, default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed', type=int, default=711)
 
