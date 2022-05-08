@@ -18,17 +18,20 @@ import pandas as pd
 from torch.utils.data import Dataset
 import monai
 from sklearn.model_selection import KFold
-from lung_function.modules.trans import LoadDatad
+from lung_function.modules.trans import LoadDatad, RandomCropForegroundd
 
 
-def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256):
+def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, crop_foreground=False):
     keys = 'image'
-    xforms = [LoadDatad(), AddChanneld(keys=keys)]
+    xforms = [LoadDatad(crop_foreground=crop_foreground), AddChanneld(keys=keys)]
     xforms.extend([SpatialPadd(keys=keys, spatial_size=[z_size, y_size, x_size], mode='minimum'),
                    ScaleIntensityRanged(keys=keys, a_min=-1500, a_max=1500, b_min=-1, b_max=1, clip=True)])
     if mode == 'train':
-        xforms.extend([RandSpatialCropd(keys=keys,roi_size=[z_size,y_size,x_size], random_center=True, random_size=False),
-                       RandGaussianNoised(keys=keys, prob=0.5, mean=0, std=0.01)])
+        if crop_foreground:
+            xforms.extend([RandomCropForegroundd(keys=keys, roi_size=[z_size, y_size, x_size], source_key='lung_mask')])
+        else:
+            xforms.extend([RandSpatialCropd(keys=keys, roi_size=[z_size, y_size, x_size], random_center=True, random_size=False)])
+        xforms.extend([RandGaussianNoised(keys=keys, prob=0.5, mean=0, std=0.01)])
     else:
         xforms.extend([CenterSpatialCropd(keys=keys, roi_size=[z_size, y_size, x_size])])
 
@@ -90,9 +93,9 @@ def all_loaders(data_dir, label_fpath, args):
     # tsxformd = xformd('test')
 
 
-    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train'), num_workers=args.workers, cache_rate=1)
-    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid'), num_workers=args.workers, cache_rate=1)
-    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test'), num_workers=args.workers, cache_rate=1)
+    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
 
     train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
                                   persistent_workers=True)

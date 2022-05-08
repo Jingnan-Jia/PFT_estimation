@@ -6,6 +6,11 @@
 
 import argparse
 
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="SSc score prediction.")
@@ -26,7 +31,7 @@ def get_args():
     parser.add_argument('--loss', choices=('mse', 'mae', 'smooth_mae', 'mse+mae', 'msehigher'), help='mode', type=str,
                         default='mse')
     parser.add_argument('--pretrained', choices=(1, 0), help='pretrained or not', type=int, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=50001)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=5001)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.0001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
@@ -40,6 +45,7 @@ def get_args():
     parser.add_argument('--hostname', help='hostname of the server', type=str)
     parser.add_argument('--remark', help='comments on this experiment', type=str)
     parser.add_argument('--jobid', help='slurm job_id', type=int, default=0)
+    parser.add_argument('--crop_foreground', help='crop_foreground', type=boolean_string, default='False')
 
     parser.add_argument('--z_size', help='length of patch along z axil ', type=int, default=192)
     parser.add_argument('--y_size', help='length of patch along y axil ', type=int, default=192)
