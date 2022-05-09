@@ -16,18 +16,16 @@ from monai.transforms import CropForeground, RandGaussianNoise, MapTransform, Tr
 from torchvision.transforms import RandomHorizontalFlip, RandomVerticalFlip, CenterCrop, RandomAffine
 from monai.transforms.utils import (
     allow_missing_keys_mode,
-    generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
     map_binary_to_indices,
-    map_classes_to_indices,
     weighted_patch_samples,
 )
 TransInOut = Dict[Hashable, Optional[Union[np.ndarray, torch.Tensor, str, int]]]
 # Note: all transforms here must inheritage Transform, Transform, or RandomTransform.
 
 
-class LoadDatad(MapTransform, Transform):
+class LoadDatad(Transform):
     """Load data. The output image values range from -1500 to 1500.
 
         #. Load data from `data['fpath_key']`;
@@ -79,6 +77,12 @@ def bbox2_3D(img):
     rmin, rmax = np.where(r)[0][[0, -1]]
     cmin, cmax = np.where(c)[0][[0, -1]]
     zmin, zmax = np.where(z)[0][[0, -1]]
+    if rmax==0:
+        rmax=img.shape[0]-1
+    if cmax==0:
+        cmax=img.shape[1]-1
+    if zmax==0:
+        zmax=img.shape[2]-1
 
     return rmin, rmax, cmin, cmax, zmin, zmax
 
@@ -87,7 +91,6 @@ class RandomCropForegroundd(MapTransform, RandomizableTransform):
     """
     Ensure that patch size is smaller than image size before this transform.
     """
-    backend = CropForeground.backend
 
     def __init__(
             self,
@@ -105,26 +108,30 @@ class RandomCropForegroundd(MapTransform, RandomizableTransform):
 
     def __call__(self, data) -> Dict:
         d = dict(data)
-        zmin, zmax, ymin, ymax, xmin, xmax = bbox2_3D(d[self.source_key])
-        z_lung = zmax-zmin
-        y_lung = ymax-ymin
-        x_lung = xmax-xmin
+        zmin, zmax, ymin, ymax, xmin, xmax = bbox2_3D(d[self.source_key][0])  # remove channel dim
+        # z_lung = zmax-zmin
+        # y_lung = ymax-ymin
+        # x_lung = xmax-xmin
 
+        z_res = d[self.source_key].shape[1]-self.z_size
+        y_res = d[self.source_key].shape[2]-self.y_size
+        x_res = d[self.source_key].shape[3]-self.x_size
+
+        rand_start = []
+        for res, start in zip([z_res, y_res, x_res], [zmin, ymin, xmin]):
+            if res > 0:
+                shift = random.randint(0, res)
+            elif res == 0:
+                shift = 0
+            else:
+                shift = random.randint(start, res)
+            rand_start.append(shift)
         for key in self.keys:
-            z_res, y_res, x_res = self.z_size-z_lung, self.y_size-y_lung, self.x_size-x_lung
-            rand_start = []
-            for res, start in zip([z_res, y_res, x_res], [zmin, ymin, xmin]):
-                if res > 0:
-                    shift = random.randint(0, res)
-                elif res == 0:
-                    shift = 0
-                else:
-                    shift = random.randint(res, 0)
-                rand_start.append(start - shift)
             d[key] = d[key][:,
                      rand_start[0]: rand_start[0] + self.z_size,
                      rand_start[1]: rand_start[1] + self.y_size,
                      rand_start[2]: rand_start[2] + self.x_size,]
+        # del d[self.source_key]  # remove lung masks
         return d
 
 class Clip:

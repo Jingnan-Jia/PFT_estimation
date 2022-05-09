@@ -45,7 +45,7 @@ def get_args():
     parser.add_argument('--hostname', help='hostname of the server', type=str)
     parser.add_argument('--remark', help='comments on this experiment', type=str)
     parser.add_argument('--jobid', help='slurm job_id', type=int, default=0)
-    parser.add_argument('--crop_foreground', help='crop_foreground', type=boolean_string, default='False')
+    parser.add_argument('--crop_foreground', help='crop_foreground', type=boolean_string, default='True')
 
     parser.add_argument('--z_size', help='length of patch along z axil ', type=int, default=192)
     parser.add_argument('--y_size', help='length of patch along y axil ', type=int, default=192)

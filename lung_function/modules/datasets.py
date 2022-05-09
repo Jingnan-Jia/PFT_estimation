@@ -20,9 +20,8 @@ import monai
 from sklearn.model_selection import KFold
 from lung_function.modules.trans import LoadDatad, RandomCropForegroundd
 
-
 def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, crop_foreground=False):
-    keys = 'image'
+    keys = ('image', 'lung_mask')
     xforms = [LoadDatad(crop_foreground=crop_foreground), AddChanneld(keys=keys)]
     xforms.extend([SpatialPadd(keys=keys, spatial_size=[z_size, y_size, x_size], mode='minimum'),
                    ScaleIntensityRanged(keys=keys, a_min=-1500, a_max=1500, b_min=-1, b_max=1, clip=True)])
@@ -35,7 +34,7 @@ def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, crop_f
     else:
         xforms.extend([CenterSpatialCropd(keys=keys, roi_size=[z_size, y_size, x_size])])
 
-    xforms.extend([CastToTyped(keys = keys, dtype=(np.float32)),
+    xforms.extend([CastToTyped(keys = keys, dtype=np.float32),
                    ToTensord(keys = keys)])
     transform = monai.transforms.Compose(xforms)
 
@@ -49,7 +48,7 @@ def clean_data(pft_df, data_dir):
     pft_df.drop(pft_df[np.isnan(pft_df.DateDF_abs)].index, inplace=True)
     pft_df.drop(pft_df[pft_df.DateDF_abs > 10].index, inplace=True)
 
-    scans = glob.glob(data_dir + "/SSc*.nii.gz")
+    scans = glob.glob(data_dir + "/SSc*[!LungMask].nii.gz")  # exclude lung mask files
     availabel_id_set = set([Path(id).stem[:-4] for id in scans])  # use stem and :-4 to remove .nii.gz
     pft_df.drop(pft_df.loc[~pft_df['subjectID'].isin(availabel_id_set)].index, inplace=True)
 
@@ -92,10 +91,9 @@ def all_loaders(data_dir, label_fpath, args):
     # vdxformd = xformd('valid')
     # tsxformd = xformd('test')
 
-
-    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
-    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
-    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
 
     train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
                                   persistent_workers=True)
