@@ -41,7 +41,8 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
     for data in dataloader:
         data_idx += 1
         t1 = time.time()
-        log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
+        if epoch_idx < 5:  # save memory, avoid mlflow buffering
+            log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
 
         batch_x = data['image'].to(device)
         # print('batch_x.shape', batch_x.size())
@@ -69,7 +70,8 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
         print('pred:', pred.clone().detach().cpu().numpy())
         print('label:', batch_y.clone().detach().cpu().numpy())
         t2 = time.time()
-        log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
+        if epoch_idx < 5:
+            log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
         t0 = t2  # reset the t0
     log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
     log_metric(mode+'MAEEpoch', mae_accu/len(dataloader), epoch_idx)
