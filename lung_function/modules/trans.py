@@ -46,7 +46,7 @@ class LoadDatad(Transform):
     def __call__(self, data: TransInOut) -> TransInOut:
         fpath = data['fpath']
         x = load_itk(fpath, require_ori_sp=False)  # shape order: z, y, x
-        y = np.array([data['FEV 1'], data['DLCO_SB']])
+        y = np.array([data['FVC'], data['DLCO_SB']])
         new_data = {'image': x.astype(np.float32),
                     'label': y.astype(np.float32)}
         if self.crop_foreground:
@@ -77,12 +77,6 @@ def bbox2_3D(img):
     rmin, rmax = np.where(r)[0][[0, -1]]
     cmin, cmax = np.where(c)[0][[0, -1]]
     zmin, zmax = np.where(z)[0][[0, -1]]
-    if rmax==0:
-        rmax=img.shape[0]-1
-    if cmax==0:
-        cmax=img.shape[1]-1
-    if zmax==0:
-        zmax=img.shape[2]-1
 
     return rmin, rmax, cmin, cmax, zmin, zmax
 
@@ -108,15 +102,12 @@ class RandomCropForegroundd(MapTransform, RandomizableTransform):
 
     def __call__(self, data) -> Dict:
         d = dict(data)
-        zmin, zmax, ymin, ymax, xmin, xmax = bbox2_3D(d[self.source_key][0])  # remove channel dim
-        # z_lung = zmax-zmin
-        # y_lung = ymax-ymin
-        # x_lung = xmax-xmin
+        zmin, zmax, ymin, ymax, xmin, xmax = bbox2_3D(d[self.source_key])
+        z_lung = zmax-zmin
+        y_lung = ymax-ymin
+        x_lung = xmax-xmin
 
-        z_res = d[self.source_key].shape[1]-self.z_size
-        y_res = d[self.source_key].shape[2]-self.y_size
-        x_res = d[self.source_key].shape[3]-self.x_size
-
+        z_res, y_res, x_res = self.z_size-z_lung, self.y_size-y_lung, self.x_size-x_lung
         rand_start = []
         for res, start in zip([z_res, y_res, x_res], [zmin, ymin, xmin]):
             if res > 0:
@@ -124,14 +115,14 @@ class RandomCropForegroundd(MapTransform, RandomizableTransform):
             elif res == 0:
                 shift = 0
             else:
-                shift = random.randint(start, res)
-            rand_start.append(shift)
+                shift = random.randint(res, 0)
+            rand_start.append(start - shift)
         for key in self.keys:
             d[key] = d[key][:,
-                     rand_start[0]: rand_start[0] + self.z_size,
-                     rand_start[1]: rand_start[1] + self.y_size,
-                     rand_start[2]: rand_start[2] + self.x_size,]
-        # del d[self.source_key]  # remove lung masks
+                 rand_start[0]: rand_start[0] + self.z_size,
+                 rand_start[1]: rand_start[1] + self.y_size,
+                 rand_start[2]: rand_start[2] + self.x_size,]
+        # del d[self.source_key]
         return d
 
 class Clip:

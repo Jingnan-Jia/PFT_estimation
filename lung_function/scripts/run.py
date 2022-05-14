@@ -44,11 +44,11 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
     loss_accu, mae_accu = 0, 0
     for data in dataloader:
         data_idx += 1
-        t1 = time.time()
-        log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
+        if epoch_idx < 3:  # only show first 3 epochs' data loading time
+            t1 = time.time()
+            log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
 
         batch_x = data['image'].to(device)
-        # print('batch_x.shape', batch_x.size())
         batch_y = data['label'].to(device)
         with torch.cuda.amp.autocast():
             if mode != 'train':
@@ -72,9 +72,10 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
 
         print('pred:', pred.clone().detach().cpu().numpy())
         print('label:', batch_y.clone().detach().cpu().numpy())
-        t2 = time.time()
-        log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
-        t0 = t2  # reset the t0
+        if epoch_idx < 3:
+            t2 = time.time()
+            log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
+            t0 = t2  # reset the t0
     log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
     log_metric(mode+'MAEEpoch', mae_accu/len(dataloader), epoch_idx)
 
@@ -108,10 +109,10 @@ def run(args):
     print('Finish all things!')
 
 if __name__ == "__main__":
-    database_rui = 'mlruns.db'
+    database_rui = 'mlrunsdb.db'
     conn = sqlite3.connect(database_rui)
-    mlflow.set_tracking_uri('sqlite:' + database_rui)
-    mlflow.set_experiment("lung_function_db")
+    mlflow.set_tracking_uri("sqlite:///mlrunsdb.db")
+    mlflow.set_experiment("lung_fun_db")
     id = record_1st("results/record.log")  # write super parameters from set_args.py to record file.
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
