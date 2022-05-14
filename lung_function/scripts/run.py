@@ -108,7 +108,9 @@ def run(args):
     print('Finish all things!')
 
 if __name__ == "__main__":
-    conn = sqlite3.connect('mlruns.db')
+    database_rui = 'mlruns.db'
+    conn = sqlite3.connect(database_rui)
+    mlflow.set_tracking_uri('sqlite:' + database_rui)
     mlflow.set_experiment("lung_function_db")
     id = record_1st("results/record.log")  # write super parameters from set_args.py to record file.
 
