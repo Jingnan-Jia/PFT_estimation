@@ -13,6 +13,10 @@ import time
 from medutils.medutils import count_parameters
 import torch
 import torch.nn as nn
+import sqlite3
+from sqlite3 import Error
+
+
 
 from lung_function.modules.datasets import all_loaders
 from lung_function.modules.loss import get_loss
@@ -41,8 +45,7 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
     for data in dataloader:
         data_idx += 1
         t1 = time.time()
-        if epoch_idx < 5:  # save memory, avoid mlflow buffering
-            log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
+        log_metric('TLoad', t1-t0, data_idx+epoch_idx*len(dataloader))
 
         batch_x = data['image'].to(device)
         # print('batch_x.shape', batch_x.size())
@@ -70,8 +73,7 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
         print('pred:', pred.clone().detach().cpu().numpy())
         print('label:', batch_y.clone().detach().cpu().numpy())
         t2 = time.time()
-        if epoch_idx < 5:
-            log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
+        log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
         t0 = t2  # reset the t0
     log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
     log_metric(mode+'MAEEpoch', mae_accu/len(dataloader), epoch_idx)
@@ -106,8 +108,9 @@ def run(args):
     print('Finish all things!')
 
 if __name__ == "__main__":
+    conn = sqlite3.connect('mlruns.db')
+    mlflow.set_experiment("lung_function_db")
     id = record_1st("results/record.log")  # write super parameters from set_args.py to record file.
-    mlflow.set_experiment("lung_function")
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         p1 = threading.Thread(target=record_cgpu_info, args=(args.outfile,))
@@ -123,3 +126,5 @@ if __name__ == "__main__":
         p2.do_run = False  # stop the thread
         p1.join()
         p2.join()
+    conn.close()  # close the database
+
