@@ -60,7 +60,7 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
                 pred = net(batch_x)
 
             loss = loss_fun(pred, batch_y)
-            with torch.no_grad:
+            with torch.no_grad():
                 mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(target))]
                 mae_all = loss_fun_mae(pred, batch_y).item()
 
