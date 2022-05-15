@@ -28,7 +28,7 @@ from lung_function.modules.tool import record_1st, record_artifacts, record_cgpu
 args = get_args()
 
 
-def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
+def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
     loss_fun_mae = nn.L1Loss()
 
     device = torch.device("cuda")
@@ -41,7 +41,9 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
 
     t0 = time.time()
     data_idx = 0
-    loss_accu, mae_accu = 0, 0
+    loss_accu = 0
+    mae_accu_ls = [0 for i in target]
+    mae_accu_all = 0
     for data in dataloader:
         data_idx += 1
         if epoch_idx < 3:  # only show first 3 epochs' data loading time
@@ -58,7 +60,10 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
                 pred = net(batch_x)
 
             loss = loss_fun(pred, batch_y)
-            mae = loss_fun_mae(pred, batch_y)
+            with torch.no_grad:
+                mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(target))]
+                mae_all = loss_fun_mae(pred, batch_y).item()
+
         if mode == 'train':  # update gradients only when training
             opt.zero_grad()
             scaler.scale(loss).backward()
@@ -66,9 +71,13 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
             scaler.update()
         print('loss:', loss.item())
         log_metric(mode+'LossBatch', loss.item(), data_idx+epoch_idx*len(dataloader))
-        log_metric(mode+'MAEBatch', mae.item(), data_idx+epoch_idx*len(dataloader))
+        log_metric(mode+'MAEBatch_all', mae_all, data_idx+epoch_idx*len(dataloader))
+        [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader)) for t, m in zip(target, mae_ls)]
+
         loss_accu += loss.item()
-        mae_accu += mae.item()
+        for i, mae in enumerate(mae_ls):
+            mae_accu_ls[i] += mae
+        mae_accu_all += mae_all
 
         print('pred:', pred.clone().detach().cpu().numpy())
         print('label:', batch_y.clone().detach().cpu().numpy())
@@ -77,13 +86,15 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx):
             log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
             t0 = t2  # reset the t0
     log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
-    log_metric(mode+'MAEEpoch', mae_accu/len(dataloader), epoch_idx)
+    log_metric(mode+'MAEEpochAll', mae_accu_all/len(dataloader), epoch_idx)
+    Nothing = [log_metric(mode + 'MAEEpoch_', i / len(dataloader), epoch_idx) for i in mae_accu_ls]
 
 
 def run(args):
     mypath = PFTPath(id, check_id_dir=False, space=args.ct_sp)
     device = torch.device("cuda")
-    outs = 2  # output FVC and FEV1
+    target = [i.lstrip() for i in args.target.split('-')]
+    outs = len(target)  # output FVC and FEV1
     net = get_net_3d(name=args.net, nb_cls=outs)
     print('net:', net)
 
@@ -102,11 +113,12 @@ def run(args):
     args.epochs = 0 if args.mode == 'infer' else args.epochs
     for i in range(args.epochs):  # 20000 epochs
         if args.mode in ['train', 'continue_train']:
-            step('train', net, data_dt['train'], loss_fun, opt, i)
+            step('train', net, data_dt['train'], loss_fun, opt, i, target)
         if i % args.valid_period == 0:  # run the validation
-            step('valid', net, data_dt['valid'], loss_fun, opt, i)
-            step('test', net, data_dt['test'], loss_fun, opt, i)
+            step('valid', net, data_dt['valid'], loss_fun, opt, i, target)
+            step('test', net, data_dt['test'], loss_fun, opt, i, target)
     print('Finish all things!')
+
 
 if __name__ == "__main__":
     database_rui = 'mlrunsdb.db'

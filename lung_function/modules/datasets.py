@@ -20,9 +20,9 @@ import monai
 from sklearn.model_selection import KFold
 from lung_function.modules.trans import LoadDatad, RandomCropForegroundd
 
-def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, crop_foreground=False):
+def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, target='FVC', crop_foreground=False):
     keys = ('image', 'lung_mask')
-    xforms = [LoadDatad(crop_foreground=crop_foreground), AddChanneld(keys=keys)]
+    xforms = [LoadDatad(target=target, crop_foreground=crop_foreground), AddChanneld(keys=keys)]
     xforms.extend([SpatialPadd(keys=keys, spatial_size=[z_size, y_size, x_size], mode='minimum'),
                    ScaleIntensityRanged(keys=keys, a_min=-1500, a_max=1500, b_min=-1, b_max=1, clip=True)])
     if mode == 'train':
@@ -86,14 +86,14 @@ def all_loaders(data_dir, label_fpath, args):
     tr_pt_idx, vd_pt_idx = kf_list[args.fold - 1]
     tr_data = tr_vd_data[tr_pt_idx]
     vd_data = tr_vd_data[vd_pt_idx]
-    # tr_data, vd_data, ts_data = tr_data[:5], vd_data[:5], ts_data[:5]
+    tr_data, vd_data, ts_data = tr_data[:5], vd_data[:5], ts_data[:5]
     # trxformd = xformd('train')
     # vdxformd = xformd('valid')
     # tsxformd = xformd('test')
 
-    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
-    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
-    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
 
     train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
                                   persistent_workers=True)
@@ -106,5 +106,4 @@ def all_loaders(data_dir, label_fpath, args):
                'valid': valid_dataloader,
                'test': test_dataloader}
     return data_dt
-
 
