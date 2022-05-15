@@ -14,9 +14,6 @@ from medutils.medutils import count_parameters
 import torch
 import torch.nn as nn
 import sqlite3
-from sqlite3 import Error
-
-
 
 from lung_function.modules.datasets import all_loaders
 from lung_function.modules.loss import get_loss
@@ -69,9 +66,10 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
             scaler.scale(loss).backward()
             scaler.step(opt)
             scaler.update()
-        print('loss:', loss.item())
-        log_metric(mode+'LossBatch', loss.item(), data_idx+epoch_idx*len(dataloader))
-        log_metric(mode+'MAEBatch_all', mae_all, data_idx+epoch_idx*len(dataloader))
+        loss_cpu = loss.item()
+        print('loss:', loss_cpu)
+        log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader))
+        log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader))
         [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader)) for t, m in zip(target, mae_ls)]
 
         loss_accu += loss.item()
@@ -86,8 +84,8 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
             log_metric('TUpdateWBatch', t2-t1, data_idx+epoch_idx*len(dataloader))
             t0 = t2  # reset the t0
     log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
-    log_metric(mode+'MAEEpochAll', mae_accu_all/len(dataloader), epoch_idx)
-    Nothing = [log_metric(mode + 'MAEEpoch_', i / len(dataloader), epoch_idx) for i in mae_accu_ls]
+    log_metric(mode+'MAEEpoch_All', mae_accu_all/len(dataloader), epoch_idx)
+    Nothing = [log_metric(mode + 'MAEEpoch_' + t, i / len(dataloader), epoch_idx) for t, i in zip(target, mae_accu_ls)]
 
 
 def run(args):
