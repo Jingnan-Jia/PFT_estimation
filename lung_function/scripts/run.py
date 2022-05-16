@@ -119,12 +119,12 @@ def run(args):
 
 
 if __name__ == "__main__":
-    # database_rui = 'sqlite:///mlruns/mlrunsdb7.db'
+    # database_rui = 'sqlite:///mlrunsdb9.db'
     # conn = sqlite3.connect(database_rui)
-    # mlflow.set_tracking_uri("http://login2.alice.universiteitleiden.nl:5000")
+    # mlflow.set_tracking_uri("http://10.161.27.235:5000")
     # mlflow.set_tracking_uri(database_rui)
 
-    mlflow.set_experiment("lung_fun_db6")
+    mlflow.set_experiment("lung_fun_7")
     id = record_1st("results/record.log")  # write super parameters from set_args.py to record file.
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
