@@ -7,6 +7,8 @@ import random
 from medutils.medutils import load_itk
 from pathlib import Path
 import numpy as np
+from mlflow import log_metric, log_param, log_params
+
 import torch
 # import streamlit as st
 from tqdm import tqdm
@@ -21,9 +23,13 @@ from sklearn.model_selection import KFold
 from lung_function.modules.trans import LoadDatad, RandomCropForegroundd
 
 def xformd(mode, z_size: int = 192, y_size: int = 256, x_size: int = 256, target='FVC', crop_foreground=False):
+    pad_ratio = 1.5
+    log_param('pad_ratio', pad_ratio)
+    post_pad_size = [int(i * pad_ratio) for i in [z_size, y_size, x_size]]
+
     keys = ('image', 'lung_mask')
     xforms = [LoadDatad(target=target, crop_foreground=crop_foreground), AddChanneld(keys=keys)]
-    xforms.extend([SpatialPadd(keys=keys, spatial_size=[z_size, y_size, x_size], mode='minimum'),
+    xforms.extend([SpatialPadd(keys=keys, spatial_size=post_pad_size, mode='minimum'),
                    ScaleIntensityRanged(keys=keys, a_min=-1500, a_max=1500, b_min=-1, b_max=1, clip=True)])
     if mode == 'train':
         if crop_foreground:

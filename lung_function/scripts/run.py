@@ -5,12 +5,16 @@
 # log_dict is used to record super parameters and metrics
 
 import sys
+from typing import List
+
 sys.path.append("../..")
 from mlflow import log_metric, log_param, log_params
 import mlflow
 import threading
 import time
 from medutils.medutils import count_parameters
+from medutils import medutils
+
 import torch
 import torch.nn as nn
 import sqlite3
@@ -25,7 +29,7 @@ from lung_function.modules.tool import record_1st, record_artifacts, record_cgpu
 args = get_args()
 
 
-def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
+def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target: List, mypath=None, save_pred=False, best_valid_loss=None):
     loss_fun_mae = nn.L1Loss()
 
     device = torch.device("cuda")
@@ -53,8 +57,16 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
             if mode != 'train':
                 with torch.no_grad():
                     pred = net(batch_x)
+
             else:
                 pred = net(batch_x)
+            if save_pred:
+                head = target
+                batch_y_np = batch_y.cpu().detach().numpy()
+                pred_np = pred.cpu().detach().numpy()
+                medutils.appendrows_to(mypath.save_label_fpath(mode), batch_y_np, head=head)
+                medutils.appendrows_to(mypath.save_pred_fpath(mode), pred_np, head=head)
+
 
             loss = loss_fun(pred, batch_y)
             with torch.no_grad():
@@ -87,6 +99,14 @@ def step(mode, net, dataloader, loss_fun, opt, epoch_idx, target):
     log_metric(mode+'MAEEpoch_All', mae_accu_all/len(dataloader), epoch_idx)
     Nothing = [log_metric(mode + 'MAEEpoch_' + t, i / len(dataloader), epoch_idx) for t, i in zip(target, mae_accu_ls)]
 
+    loss_cpu = loss.item()
+    if mode == 'valid' and (best_valid_loss is not None) and best_valid_loss>loss_cpu:
+        print(f"Current loss is {loss_cpu}, better than the previous loss: {best_valid_loss}, save model.")
+        torch.save(net.state_dict(), mypath.model_fpath)
+        best_valid_loss = loss_cpu
+
+    return best_valid_loss
+
 
 def run(args):
     mypath = PFTPath(id, check_id_dir=False, space=args.ct_sp)
@@ -102,19 +122,32 @@ def run(args):
 
     data_dt = all_loaders(mypath.data_dir, mypath.label_fpath, args)
 
-    net = net.to(device)
-    if args.eval_id:
-        net.load_state_dict(torch.load(mypath.model_fpath, map_location=device))  # model_fpath need to exist
-
     loss_fun = get_loss(args.loss)
     opt = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    args.epochs = 0 if args.mode == 'infer' else args.epochs
-    for i in range(args.epochs):  # 20000 epochs
-        if args.mode in ['train', 'continue_train']:
+
+    net = net.to(device)
+
+    if args.pretrained_id:
+        pretrained_path = PFTPath(args.pretrained_id, check_id_dir=False, space=args.ct_sp)
+        net.load_state_dict(torch.load(pretrained_path.model_fpath, map_location=device))  # model_fpath need to exist
+    if args.mode == 'infer':
+        save_pred = True
+        step('valid', net, data_dt['valid'], loss_fun, opt, 0, target, mypath, save_pred)
+        step('test', net, data_dt['test'], loss_fun, opt, 0, target, mypath, save_pred)
+    else: # 'train' or 'continue train'
+        best_valid_loss = 100000
+        for i in range(args.epochs):  # 20000 epochs
             step('train', net, data_dt['train'], loss_fun, opt, i, target)
-        if i % args.valid_period == 0:  # run the validation
-            step('valid', net, data_dt['valid'], loss_fun, opt, i, target)
-            step('test', net, data_dt['test'], loss_fun, opt, i, target)
+            if i % args.valid_period == 0:  # run the validation
+                best_valid_loss = step('valid', net, data_dt['valid'], loss_fun, opt, i, target, mypath, False, best_valid_loss)
+                step('test', net, data_dt['test'], loss_fun, opt, i, target)
+            if i == args.epochs - 1:  # load best model and do inference
+                print('start inference')
+                net.load_state_dict(torch.load(mypath.model_fpath, map_location=device))  # model_fpath need to exist
+                print(f"load net from {mypath.model_fpath}")
+                save_pred = True
+                step('valid', net, data_dt['valid'], loss_fun, opt, i, target, mypath, save_pred)
+                step('test', net, data_dt['test'], loss_fun, opt, i, target, mypath, save_pred)
     print('Finish all things!')
 
 
@@ -122,9 +155,9 @@ if __name__ == "__main__":
     # database_rui = 'sqlite:///mlrunsdb9.db'
     # conn = sqlite3.connect(database_rui)
     # mlflow.set_tracking_uri("http://10.161.27.235:5000")
-    # mlflow.set_tracking_uri(database_rui)
+    mlflow.set_tracking_uri('sqlite:///mlrunsdb15.db')
 
-    mlflow.set_experiment("lung_fun_7")
+    mlflow.set_experiment("lung_fun_db15")
     id = record_1st("results/record.log")  # write super parameters from set_args.py to record file.
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):

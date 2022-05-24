@@ -17,7 +17,7 @@ def get_args():
 
     # Common args with set_args.py
     parser.add_argument('--mode', choices=('train', 'infer', 'continue_train'), help='mode', type=str, default='train')
-    parser.add_argument('--eval_id', help='id used for inference, or continue_train', type=int, default=0)
+    parser.add_argument('--pretrained_id', help='id used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--net', choices=('vgg11_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2', 'cnn5fc2', 'cnn6fc2',
                                           'cnn2fc1', 'cnn3fc2'), help='network name', type=str, default='vgg11_3d')
     parser.add_argument('--fc2_nodes', help='the number of nodes of fc2 layer, original is 4096', type=int,
@@ -31,16 +31,16 @@ def get_args():
     parser.add_argument('--loss', choices=('mse', 'mae', 'smooth_mae', 'mse+mae', 'msehigher'), help='mode', type=str,
                         default='mse')
     parser.add_argument('--pretrained', choices=(1, 0), help='pretrained or not', type=int, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=3001)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=501)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.0001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
 
-    parser.add_argument('--batch_size', help='batch_size', type=int, default=4)
+    parser.add_argument('--batch_size', help='batch_size', type=int, default=5)
     parser.add_argument('--ct_sp', help='space', type=str, default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed', type=int, default=711)
 
-    parser.add_argument('--target', help='target prediction', type=str, default='FVC')
+    parser.add_argument('--target', help='target prediction', type=str, default='FVC-DLCO_SB')
 
     parser.add_argument('--outfile', help='output file when running by script instead of pycharm', type=str)
     parser.add_argument('--hostname', help='hostname of the server', type=str)
@@ -48,9 +48,9 @@ def get_args():
     parser.add_argument('--jobid', help='slurm job_id', type=int, default=0)
     parser.add_argument('--crop_foreground', help='crop_foreground', type=boolean_string, default='True')
 
-    parser.add_argument('--z_size', help='length of patch along z axil ', type=int, default=192)
-    parser.add_argument('--y_size', help='length of patch along y axil ', type=int, default=192)
-    parser.add_argument('--x_size', help='length of patch along x axil ', type=int, default=192)
+    parser.add_argument('--z_size', help='length of patch along z axil ', type=int, default=240)
+    parser.add_argument('--y_size', help='length of patch along y axil ', type=int, default=240)
+    parser.add_argument('--x_size', help='length of patch along x axil ', type=int, default=240)
 
     args = parser.parse_args()
 

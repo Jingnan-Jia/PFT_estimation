@@ -41,3 +41,9 @@ class PFTPath():
                 print('successfully create directory:', directory)
 
         self.model_fpath = os.path.join(self.id_dir, 'model.pt')
+
+    def save_pred_fpath(self, mode):
+        return os.path.join(self.id_dir, mode + '_pred.csv')
+
+    def save_label_fpath(self, mode):
+        return os.path.join(self.id_dir, mode + '_label.csv')

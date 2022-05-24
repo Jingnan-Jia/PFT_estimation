@@ -230,11 +230,11 @@ def mean_diff_plot(m1, m2,
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
     if ynotdiff:
-        ax.set_ylabel('$Obs2_{T2} \;score\;(\%)$', fontsize=15)
-        ax.set_xlabel('GT score (%)', fontsize=15)
+        ax.set_ylabel('Prediction', fontsize=15)
+        ax.set_xlabel('Ground truth', fontsize=15)
     else:
-        ax.set_ylabel('$Obs2_{T2}\;-\;GT\;score\;(\%)$', fontsize=15)
-        ax.set_xlabel('Average score (%)', fontsize=15)
+        ax.set_ylabel('Prediction - Ground truth', fontsize=15)
+        ax.set_xlabel('Average', fontsize=15)
 
     # if ynotdiff:
     #     ax.set_ylabel('L-Net (slice number)', fontsize=15)
