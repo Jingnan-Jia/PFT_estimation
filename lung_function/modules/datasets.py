@@ -100,6 +100,8 @@ def all_loaders(data_dir, label_fpath, args):
     tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd('train', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
     vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
     ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd('test', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
+    # training dataset without any data augmentation to simulate the valid transform to see if center crop helps
+    tr_dataset_no_aug = monai.data.CacheDataset(data=tr_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, target=args.target, crop_foreground=args.crop_foreground), num_workers=args.workers, cache_rate=1)
 
     train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
                                   persistent_workers=True)
@@ -108,8 +110,12 @@ def all_loaders(data_dir, label_fpath, args):
     test_dataloader = DataLoader(ts_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers,
                                  persistent_workers=True)
 
+    train_dataloader_no_aug = DataLoader(tr_dataset_no_aug, batch_size=args.batch_size, shuffle=False, num_workers=args.workers,
+                                  persistent_workers=True)
+
     data_dt = {'train': train_dataloader,
                'valid': valid_dataloader,
-               'test': test_dataloader}
+               'test': test_dataloader,
+               'train_no_aug': train_dataloader_no_aug}
     return data_dt
 

@@ -137,6 +137,7 @@ def mean_diff_plot(m1, m2,
     # fontsize = 20
     fig, ax = create_mpl_ax(ax)
 
+
     if len(m1) != len(m2):
         raise ValueError('m1 does not have the same length as m2.')
     if sd_limit < 0:

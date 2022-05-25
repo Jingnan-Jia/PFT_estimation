@@ -7,6 +7,9 @@ import torch.nn as nn
 import torchvision.models as models
 from lung_function.modules.summary import summary
 import copy
+from functools import partial
+from torch.nn import functional as F
+from torchvision.ops.misc import ConvNormActivation
 
 class ReconNet(nn.Module):
     def __init__(self, reg_net, input_size=512):
@@ -216,11 +219,16 @@ def get_net(name: str, nb_cls: int, args):
         net.classifier[4] = torch.nn.Linear(in_features=args.fc1_nodes, out_features=args.fc2_nodes)
         net.classifier[6] = torch.nn.Linear(in_features=args.fc2_nodes, out_features=3)
     elif name == 'cnn3fc1':
-        net = Cnn3fc1(num_classes=3)
+        net = Cnn3fc1(num_classes=nb_cls)
     elif name == 'cnn2fc1':
-        net = Cnn2fc1(num_classes=3)
+        net = Cnn2fc1(num_classes=nb_cls)
     elif name == 'squeezenet':
-        net = models.squeezenet1_0()
+        net = models.squeezenet1_0(pretrained=args.pretrained)
+        net.features[0] = nn.Conv2d(1, 96, kernel_size=7, stride=2)
+        final_conv = nn.Conv2d(512, nb_cls, kernel_size=1)
+        net.classifier = nn.Sequential(
+            nn.Dropout(p=0.3), final_conv, nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((1, 1))
+        )
     elif name == 'densenet161':
         net = models.densenet161()
     elif name == 'inception_v3':
@@ -229,6 +237,26 @@ def get_net(name: str, nb_cls: int, args):
         net = models.mnasnet1_0()
     elif name == 'shufflenet_v2_x1_0':
         net = models.shufflenet_v2_x1_0()
+    elif name == 'convnext':
+        net = models.convnext_tiny(pretrained=True)
+
+        class LayerNorm2d(nn.LayerNorm):
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = x.permute(0, 2, 3, 1)
+                x = F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+                x = x.permute(0, 3, 1, 2)
+                return x
+
+        net.features[0] = ConvNormActivation(1,
+                96,
+                kernel_size=4,
+                stride=4,
+                padding=0,
+                norm_layer=partial(LayerNorm2d, eps=1e-6),
+                activation_layer=None,
+                bias=True,)
+        net.classifier[-1] = nn.Linear(768, nb_cls)
+
     elif 'res' in name:
         if name == 'resnext50_32x4d':
             net = models.resnext50_32x4d(pretrained=args.pretrained, progress=True)
@@ -237,7 +265,9 @@ def get_net(name: str, nb_cls: int, args):
             net = models.resnet18(pretrained=args.pretrained, progress=True)
             net.fc = nn.Linear(512, nb_cls)
         elif name == 'wide_resnet50_2':
-            net = models.wide_resnet50_2()
+            net = models.wide_resnet50_2(pretrained=args.pretrained, progress=True)
+            net.fc = nn.Linear(512 * models.resnet.Bottleneck.expansion, nb_cls)
+
         elif name == 'resnext101_32x8d':
             net = models.resnext101_32x8d(pretrained=args.pretrained, progress=True)
             net.fc = nn.Linear(512 * models.resnet.Bottleneck.expansion, nb_cls)

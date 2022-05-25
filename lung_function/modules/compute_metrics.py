@@ -14,6 +14,8 @@ import pingouin as pg
 from scipy import ndimage
 import glob
 import os
+import seaborn as sns
+# sns.set_theme(color_codes=True)
 
 import matplotlib
 import numpy as np
@@ -66,11 +68,14 @@ def metrics(pred_fpath, label_fpath):
     df_label = pd.read_csv(label_fpath)
     print('len_df_label', len(df_label))
 
+
     lower_y_ls, upper_y_ls = [], []
     lower_x_ls, upper_x_ls = [], []
 
     fig = plt.figure(figsize=(15, 4))
     fig_2 = plt.figure(figsize=(15, 5))
+    fig_3 = plt.figure(figsize=(15, 5))
+
 
     if len(df_label.columns) == 3:
         row_nb, col_nb = 1, 3
@@ -128,6 +133,13 @@ def metrics(pred_fpath, label_fpath):
     for plot_id, column in enumerate(df_label.columns):
         label = df_label[column].to_numpy().reshape(-1, )
         pred = df_pred[column].to_numpy().reshape(-1, )
+        ax_3 = fig_3.add_subplot(row_nb, col_nb, plot_id + 1)
+        ax_3 = sns.regplot(x=label, y=pred, color=colors[plot_id])
+
+
+    for plot_id, column in enumerate(df_label.columns):
+        label = df_label[column].to_numpy().reshape(-1, )
+        pred = df_pred[column].to_numpy().reshape(-1, )
 
         ax_2 = fig_2.add_subplot(row_nb, col_nb, plot_id + 1)
         # plot linear regression line
@@ -164,6 +176,10 @@ def metrics(pred_fpath, label_fpath):
         ax_2.set_xlim(0, limitx)
         ax_2.set_ylim(0, limitx)
 
+        ax_3 = fig_3.add_subplot(row_nb, col_nb, i + 1)
+        ax_3.set_xlim(0, limitx)
+        ax_3.set_ylim(0, limitx)
+
     # f.suptitle(prefix.capitalize() + " Bland-Altman Plot", fontsize=26)
     f.tight_layout()
     f.savefig(basename + '/' + prefix + '_bland_altman.png')
@@ -174,14 +190,17 @@ def metrics(pred_fpath, label_fpath):
     f_2.savefig(basename + '/' + prefix + '_scatter.png')
     plt.close(f_2)
 
+    fig_3.tight_layout()
+    fig_3.savefig(basename + '/' + prefix + '_scatter_ci.png')
+    plt.close(fig_3)
 
 if __name__ == "__main__":
     # pred_fpath = "/data/jjia/ssc_scoring/ssc_scoring/dataset/observer_agreement/16_patients/LKT2_16patients.csv"
     # pred_fpath = "/data/jjia/ssc_scoring/ssc_scoring/results/models/1405_1404_1411_1410/16pats_pred.csv"
     # label_fpath = "/data/jjia/ssc_scoring/ssc_scoring/dataset/observer_agreement/16_patients/ground_truth_16patients.csv"
 
-    pred_fpath = "/data1/jjia/lung_function/lung_function/scripts/results/experiments/201/valid_pred.csv"
-    label_fpath = "/data1/jjia/lung_function/lung_function/scripts/results/experiments/201/valid_label.csv"
+    pred_fpath = "/data1/jjia/lung_function/lung_function/scripts/results/experiments/202/traininfernoaug_pred.csv"
+    label_fpath = "/data1/jjia/lung_function/lung_function/scripts/results/experiments/202/traininfernoaug_label.csv"
 
     metrics(pred_fpath, label_fpath)
     icc_value = icc(label_fpath, pred_fpath)
