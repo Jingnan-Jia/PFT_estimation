@@ -70,7 +70,7 @@ def index_points(points, idx):
     # batch_indices = batch_indices.to('cpu')
     # idx = idx.to('cpu')
     # idx[idx>=points.shape[1]] = points.shape[1]-1  # test if the works
-    new_points = points[batch_indices, idx, :]  # [B, S, [S1], C]
+    new_points = torch.tensor(points)[torch.tensor(batch_indices), torch.tensor(idx), :]  # [B, S, [S1], C]
     # new_points = new_points.to(device)
     return new_points
 
@@ -95,10 +95,10 @@ def farthest_point_sample(xyz, npoint):
     batch_indices = torch.arange(B, dtype=torch.long).to(device)  # (B,), like [0,1,2] when batch size is 3 
     for i in range(npoint):
         centroids[:, i] = farthest
-        centroid = xyz[batch_indices, farthest, :].view(B, 1, 3)  
+        centroid = torch.tensor(xyz)[batch_indices, farthest, :].view(B, 1, 3)  
         dist = torch.sum((xyz - centroid) ** 2, -1)
         mask = dist < distance
-        distance[mask] = dist[mask]
+        distance[torch.tensor(mask)] = torch.tensor(dist)[torch.tensor(mask)]
         farthest = torch.max(distance, -1)[1]
     return centroids
 

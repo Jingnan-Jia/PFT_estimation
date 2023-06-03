@@ -62,9 +62,9 @@ def mean_diff_plot(m1, m2,
                    limit_lines_kwds=None,
                    x_is_label=True,
                    bland_in_1_mean_std=None,
-                   adap_markersize=1,
+                   adap_markersize=0,
                    ynotdiff=False,
-                   xy_same_max=True):
+                   class_name=None):
     """
     Construct a Tukey/Bland-Altman Mean Difference Plot.
 
@@ -149,34 +149,17 @@ def mean_diff_plot(m1, m2,
     mean_diff = np.mean(diffs)
     std_diff = np.std(diffs)
 
-    if adap_markersize:
-        if ynotdiff:
-            s_candidate = m1.reshape(-1, )
-        else:
-            s_candidate = diffs.reshape(-1, )
-        values, counts = np.unique(s_candidate, return_counts=True)
-        counts_dt = dict(zip(values, counts))
-        s_linear = np.array([abs(counts_dt[i]) *4 for i in s_candidate])
-    else:
-        s_linear = None
-    if scatter_kwds is None:
-        scatter_kwds = {"s": s_linear}
-    else:
-        scatter_kwds.update({"s": s_linear})
-    # scatter_kwds = scatter_kwds or {"s": s_linear}
-    if 's' not in scatter_kwds or scatter_kwds['s'] is None:
-        scatter_kwds['s'] = 4
+
     mean_line_kwds = mean_line_kwds or {}
     limit_lines_kwds = limit_lines_kwds or {}
+    
     for kwds in [mean_line_kwds, limit_lines_kwds]:
         if 'color' not in kwds:
             kwds['color'] = 'black'
-        if 'linewidth' not in kwds:
-            kwds['linewidth'] = 1
-    if 'linestyle' not in mean_line_kwds:
-        kwds['linestyle'] = '--'
-    if 'linestyle' not in limit_lines_kwds:
-        kwds['linestyle'] = ':'
+            
+    # kwds['linewidth'] = 1
+    kwds['linestyle'] = '--'
+
 
     if ynotdiff:
         if x_is_label:
@@ -189,8 +172,7 @@ def mean_diff_plot(m1, m2,
             ax.scatter(m2.reshape(-1, ), diffs, **scatter_kwds)
         else:
             ax.scatter(means.reshape(-1, ), diffs, **scatter_kwds)
-    # if xy_same_max:
-    #     plt.axis('square')
+            
     if bland_in_1_mean_std is not None:
         mean_diff = bland_in_1_mean_std['mean']
         std_diff = bland_in_1_mean_std['std']
@@ -233,10 +215,10 @@ def mean_diff_plot(m1, m2,
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
     if ynotdiff:
-        ax.set_ylabel('Prediction', fontsize=15)
-        ax.set_xlabel('Label', fontsize=15)
+        ax.set_ylabel(f'Estimated {class_name}', fontsize=15)
+        ax.set_xlabel(f'Measured {class_name}', fontsize=15)
     else:
-        ax.set_ylabel('Prediction - Label', fontsize=15)
+        ax.set_ylabel('Prediction - measurement', fontsize=15)
         ax.set_xlabel('Average', fontsize=15)
 
     # if ynotdiff:

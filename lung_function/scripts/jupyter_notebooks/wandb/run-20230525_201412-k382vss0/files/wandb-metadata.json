@@ -1,0 +1,164 @@
+{
+    "os": "Linux-3.10.0-1160.90.1.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.8.13",
+    "heartbeatAt": "2023-05-25T18:14:14.172785",
+    "startedAt": "2023-05-25T18:14:12.555528",
+    "docker": null,
+    "cuda": null,
+    "args": null,
+    "state": "running",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "https://github.com/Jingnan-Jia/PFT",
+        "commit": "ad210a6952016b0e19bdd6fadbbad032badef539"
+    },
+    "email": "jiajingnan2222@gmail.com",
+    "root": "/data1/jjia/lung_function",
+    "host": "nodelogin02",
+    "username": "jjia",
+    "executable": "/home/jjia/.conda/envs/py38/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 1023.0433333333335,
+        "min": 1000.0,
+        "max": 3700.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1073.388,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1090.686,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1002.453,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1000.39,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1081.164,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1000.073,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1000.073,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1053.393,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1017.053,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1003.723,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1011.181,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1013.879,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1099.255,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1197.961,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1097.351,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 1095.129,
+            "min": 1000.0,
+            "max": 3700.0
+        },
+        {
+            "current": 999.914,
+            "min": 1000.0,
+            "max": 3700.0
+        }
+    ],
+    "disk": {
+        "total": 49.090301513671875,
+        "used": 10.667423248291016
+    },
+    "gpu": "Tesla T4",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        }
+    ],
+    "memory": {
+        "total": 345.94750595092773
+    }
+}

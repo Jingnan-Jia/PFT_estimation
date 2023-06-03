@@ -11,10 +11,17 @@ import torch
 import torchvision
 import importlib
 import sys
-sys.path.append("models_pcd")
-from lung_function.modules.openpoints.models import build_model_from_cfg
-from lung_function.modules.openpoints.utils import EasyConfig
+sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/models_pcd")
+# from openpoints.models import build_model_from_cfg
+# from openpoints.utils import EasyConfig
 from mlflow import log_params
+from lung_function.modules.ulip.models import ULIP_models 
+from lung_function.modules.ulip.models.pointmlp.pointMLP import pointMLP
+from lung_function.modules.ulip.models.pointnet2.pointnet2 import Pointnet2_Ssg
+from lung_function.modules.ulip.models.pointbert.point_encoder import PointTransformer
+# from lung_function.modules.ulip.models.pointnext.pointnext import PointNEXT
+
+
 
 def get_net_3d(name: str,
                nb_cls: int,
@@ -27,33 +34,58 @@ def get_net_3d(name: str,
                dp_fc1_flag=False, 
                args=None):
     level_node = 0
-    if 'pointnet' in name:
+    # if 'ulip' in name or 'ULIP' in name:  # the code is from the point-ulip author
+    #     if 'PointMLP' in name:
+    #         net = pointMLP()
+    #     elif 'Pointnet2_SSG' in name:
+    #         net = Pointnet2_Ssg()
+    #     elif 'PointBERT' in name:
+    #         net = PointTransformer()
+    #     elif 'PointNext' in name:
+    #         net = PointNEXT()
+    #     else:
+    #         raise Exception('Unknown point network')
+            
+        # net = getattr(ULIP_models, args.net)(args=args)
+        # args.model: 'ULIP_PN_SSG', 'ULIP_PN_NEXT', 'ULIP_PN_MLP', 'ULIP_PointBERT'
+    if name == 'pointmlp_reg':
+        from pointmlp_reg import pointMLP
+        net = pointMLP(num_classes=nb_cls, points=1024)
+    # elif name == 'pointbert_reg':
+    #     from pointbert_reg import pointMLP
+            
+    elif 'point' in name:  # the code is from the pointnet++ author
         # if name=='pointnet_reg':
         def inplace_relu(m):
             classname = m.__class__.__name__
             if classname.find('ReLU') != -1:
                 m.inplace = True
         pcd_model = importlib.import_module(name)
+        
+        
+            
         if name=='pointnet_reg':  
 
             net = pcd_model.get_model(nb_cls, pointnet_fc_ls, loss, dp_fc1_flag)
-        else:  # pointnet++
-            net = pcd_model.get_model(nb_cls, npoint_base=args.npoint_base, radius_base=args.radius_base, nsample_base=args.nsample_base)
+        else:  # pointnet++=pointnet2
+            net = pcd_model.get_model(nb_cls, 
+                                      npoint_base=args.npoint_base, 
+                                      radius_base=args.radius_base, 
+                                      nsample_base=args.nsample_base)
         net.apply(inplace_relu)
         # elif name=='pointnet2_reg':
-    elif 'pointnext' in name:
-        
-        cfg = EasyConfig()
-        cfg_fpath = "/home/jjia/data/lung_function/lung_function/modules/cfgs/" + args.cfg
-
-        cfg.load(cfg_fpath, recursive=True)  # args.cfs is the path of the cfg file
-        cfg.radius = args.radius_base
-        cfg.radius_scaling = args.radius_scaling
-        cfg.sa_layers = args.sa_layers
-        cfg.nsample = args.nsample_base
-        cfg.num_classes = nb_cls
-        cfg.width = args.width
-        net = build_model_from_cfg(cfg.model)  # pass a config set to this function to build a model
+    # elif 'pointnext' in name:  # the code is from the pointnext author
+    #     cfg = EasyConfig()
+    #     cfg_fpath = "/home/jjia/data/lung_function/lung_function/modules/cfgs/" + args.cfg
+    #     cfg.load(cfg_fpath, recursive=True)  # args.cfs is the path of the cfg file
+    #     cfg.radius = args.radius_base
+    #     cfg.radius_scaling = args.radius_scaling
+    #     cfg.sa_layers = args.sa_layers
+    #     cfg.nsample = args.nsample_base
+    #     cfg.num_classes = nb_cls
+    #     cfg.width = args.width
+    #     net = build_model_from_cfg(cfg.model)  # pass a config set to this function to build a model
+    
 
     elif name == 'cnn3fc1':
         net = Cnn3fc1(fc1_nodes=fc1_nodes, fc2_nodes=fc2_nodes,

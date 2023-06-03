@@ -25,7 +25,7 @@ import pandas as pd
 import scipy
 from sklearn.metrics import cohen_kappa_score
 
-import lung_function.modules.my_bland as sm
+from lung_function.modules import my_bland
 
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use('Agg')
@@ -136,7 +136,7 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
         ax = fig.add_subplot(row_nb, col_nb, plot_id + 1)
         ax_2 = fig_2.add_subplot(row_nb, col_nb, plot_id + 1)
         # ax_3 = fig_3.add_subplot(row_nb, col_nb, plot_id + 1)
-        ax_2 = sns.regplot(x=label, y=pred, color=colors[plot_id], label = f"95% confidence interval")
+        
         
         # predicting interval
         # import scipy.stats as stats
@@ -229,23 +229,23 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
 
 
         # f, ax = plt.subplots(1, figsize=(8, 5))
-        scatter_kwds = {'c': colors[plot_id], 'label': column}
+        scatter_kwds = {'c': colors[plot_id], 'label': column, 's': 8}
 
 
-        f = sm.mean_diff_plot(pred, label, ax=ax, 
+        f = my_bland.mean_diff_plot(pred, label, ax=ax, 
         scatter_kwds=scatter_kwds,
                               bland_in_1_mean_std=None,
-                              adap_markersize=False, 
-                              xy_same_max=xy_same_max)
-        f_2 = sm.mean_diff_plot(pred, label, ax=ax_2, sd_limit=0, 
+                              adap_markersize=False)
+        f_2 = my_bland.mean_diff_plot(pred, label, ax=ax_2, sd_limit=0, 
         scatter_kwds=scatter_kwds,
                                 bland_in_1_mean_std=None,
                                 adap_markersize=False, 
                                 ynotdiff=True, 
-                                xy_same_max=xy_same_max)
-
-        ax.set_title(column, fontsize=15)
-        ax_2.set_title(column, fontsize=15)
+                                class_name=column)
+        ax = sns.regplot(x=label, y=pred, color=scatter_kwds['c'], scatter_kws={'s': 8},
+                         label = f"95% confidence interval")
+        # ax.set_title(column, fontsize=15)
+        # ax_2.set_title(column, fontsize=15)
 
         
         # plot linear regression line
@@ -285,18 +285,28 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
         ax_2.set_xlim(0, max_xy*1.2)
         ax_2.set_ylim(0, max_xy*1.2)
         
-        if column in ['DLCOc']:
-            mre = 0.1
-        elif column=='FEV1':
-            mre = 0.06
-        elif column=='FVC':
-            mre = 0.05
-        elif column=='TLC':
-            mre = 0.1
-        min_lb = np.min(label)
-        max_lb = np.max(label)
-        ax_2.plot([min_lb, max_lb], [min_lb * (1-mre), max_lb * (1-mre)], '--', color = 'gray')
-        ax_2.plot([min_lb, max_lb], [min_lb * (1+mre), max_lb * (1+mre)], '--', color = 'gray')
+    #     if column in ['DLCOc', 'DLCOc_SB']:
+    #         mre = 0.1
+    #     elif column=='FEV1':
+    #         mre = 0.06
+    #     elif column=='FVC':
+    #         mre = 0.05
+    #     elif column in ['TLC', 'TLC_He']:
+    #         mre = 0.1
+    #     else:
+    #         mre = 0
+            
+    #     if mre:
+        
+    #   # The above code is plotting two dashed lines on a graph using the `plot` function from the `matplotlib` library.
+    #   # The lines are plotted on the `ax_2` axis object. The first line is plotted between the minimum and maximum values
+    #   # of the `label` array, with the y-coordinates calculated as `min_lb * (1-mre)` and `max_lb * (1-mre)`. The second
+    #   # line is also plotted between the minimum and maximum values of the `label` array, with the y-coordinates
+    #   # calculated as `min_lb * (1+mre)` and `
+    #         min_lb = np.min(label)
+    #         max_lb = np.max(label)
+    #         ax_2.plot([min_lb, max_lb], [min_lb * (1-mre), max_lb * (1-mre)], '--', color = 'gray')
+    #         ax_2.plot([min_lb, max_lb], [min_lb * (1+mre), max_lb * (1+mre)], '--', color = 'gray')
 
 
         lower_y, upper_y = ax.get_ybound()  # set these plots as the same scale for comparison

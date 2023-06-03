@@ -20,8 +20,8 @@ def get_args(jupyter=False):
     parser.add_argument('--net', choices=('vgg11_3d', 'vit3', 'vgg16_3d', 'vgg19_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2',
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
-                                          'vgg11_3d', 'pointnext'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='x3d_m')
+                                          'vgg11_3d', 'pointnext', 'pointmlp_reg'),  # 'r2plus1d_18' out of memory
+                        help='network name', type=str, default='pointmlp_reg')
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -35,9 +35,9 @@ def get_args(jupyter=False):
     parser.add_argument('--npoint_base', help='base of npoint',
                         type=int, default=512)  # ori = 512
     parser.add_argument('--radius_base', help='base of radius',
-                        type=int, default=5)  # ori = 40
+                        type=int, default=40)  # ori = 40
     parser.add_argument('--nsample_base', help='base of nsample',
-                        type=int, default=32)  # ori = 64
+                        type=int, default=64)  # ori = 64
     parser.add_argument('--width', help='width',
                         type=int, default=16)  # ori = 64
     parser.add_argument('--radius_scaling', help='base of radius',
@@ -48,7 +48,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=1)
+                        type=int, default=10)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -61,9 +61,9 @@ def get_args(jupyter=False):
         'ct_lower_in_lung', 'ct_front_in_lung', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel', 'vessel_skeleton_pcd', 
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
         'IntrA_cls'),
-        type=str, default='ct')
+        type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--target', help='target prediction', type=str,
-                        default='FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
+                        default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
         '--workers', help='number of workers for dataloader', type=int, default=6)
 
@@ -82,7 +82,7 @@ def get_args(jupyter=False):
 
     # for point cloud data
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
-    parser.add_argument('--PNB', help='points number for each image', type=int, default=56000)
+    parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
     parser.add_argument('--FPS_input', help='Fartest point sample input', type=boolean_string, default='False')
     parser.add_argument('--repeated_sample', help='if apply repeated sampling to get PNB points?', type=boolean_string, default='False')
     parser.add_argument('--position_center_norm', help='if use the relative coordinates: center point is 0,0,0', type=boolean_string, default='True')
@@ -115,6 +115,58 @@ def get_args(jupyter=False):
                         type=boolean_string, default='False')
     parser.add_argument('--cosine_decay', help='cosine_decay',
                         type=boolean_string, default='False')
+    
+    # for point-ULIP 
+    # parser.add_argument('--output-dir', default='./outputs', type=str, help='output dir')
+    # parser.add_argument('--pretrain_dataset_name', default='shapenet', type=str)
+    # parser.add_argument('--pretrain_dataset_prompt', default='shapenet_64', type=str)
+    # parser.add_argument('--validate_dataset_name', default='modelnet40', type=str)
+    # parser.add_argument('--validate_dataset_prompt', default='modelnet40_64', type=str)
+    # parser.add_argument('--use_height', action='store_true', help='whether to use height informatio, by default enabled with PointNeXt.')
+    # parser.add_argument('--npoints', default=8192, type=int, help='number of points used for pre-train and test.')
+    # # Model
+    # parser.add_argument('--model', default='ULIP_PN_SSG', type=str)
+    # # Training
+    # parser.add_argument('--epochs', default=250, type=int)
+    # parser.add_argument('--warmup-epochs', default=1, type=int)
+    # parser.add_argument('--start-epoch', default=0, type=int)
+    # parser.add_argument('--batch-size', default=64, type=int,
+    #                     help='number of samples per-device/per-gpu')
+    # parser.add_argument('--lr', default=3e-3, type=float)
+    # parser.add_argument('--lr-start', default=1e-6, type=float,
+    #                     help='initial warmup lr')
+    # parser.add_argument('--lr-end', default=1e-5, type=float,
+    #                     help='minimum final lr')
+    # parser.add_argument('--update-freq', default=1, type=int,
+    #                     help='optimizer update frequency (i.e. gradient accumulation steps)')
+    # parser.add_argument('--wd', default=0.1, type=float)
+    # parser.add_argument('--betas', default=(0.9, 0.98), nargs=2, type=float)
+    # parser.add_argument('--eps', default=1e-8, type=float)
+    # parser.add_argument('--eval-freq', default=1, type=int)
+    # parser.add_argument('--disable-amp', action='store_true',
+    #                     help='disable mixed-precision training (requires more memory and compute)')
+    # parser.add_argument('--resume', default='', type=str, help='path to resume from')
+
+    # # System
+    # parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
+    # parser.add_argument('-j', '--workers', default=10, type=int, metavar='N',
+    #                     help='number of data loading workers per process')
+    parser.add_argument('--evaluate_3d', default=True, type=boolean_string, help='eval 3d only')
+    # parser.add_argument('--world-size', default=1, type=int,
+    #                     help='number of nodes for distributed training')
+    # parser.add_argument('--rank', default=0, type=int,
+    #                     help='node rank for distributed training')
+    # parser.add_argument("--local_rank", type=int, default=0)
+    # parser.add_argument('--dist-url', default='env://', type=str,
+    #                     help='url used to set up distributed training')
+    # parser.add_argument('--dist-backend', default='nccl', type=str)
+    # parser.add_argument('--seed', default=0, type=int)
+    # parser.add_argument('--gpu', default=None, type=int, help='GPU id to use.')
+    # parser.add_argument('--wandb', action='store_true', help='Enable WandB logging')
+
+    # parser.add_argument('--test_ckpt_addr', default='', help='the ckpt to test 3d zero shot')
+    
+    
     # others
     parser.add_argument(
         '--outfile', help='output file when running by script instead of pycharm', type=str)
@@ -133,6 +185,8 @@ def get_args(jupyter=False):
 
     if args.x_size == 0 or args.y_size == 0:
         raise Exception("0 x_size or y_size: ")
+    if args.input_mode == 'vessel_skeleton_pcd':
+        args.ct_sp = 'ori'
 
     return args
 

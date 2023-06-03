@@ -104,7 +104,7 @@ def main():
     # update parameters
     AttentionMethod = "GradCAM"  # or others
     Ex_id = 2664  # 2522 vgg 4-out, 2601 for vgg, 2657 for x3d_m FEV, 2666 for x3d_m of four outputs.
-    for Ex_id in [2751, 2664, 2657, 2658, 2662]:  # 2543, 2541, 2539, 2537, 2535
+    for Ex_id in [2535]:  # 2543, 2541, 2539, 2537, 2535  2751, 2664, 2657, 2658, 2662
         max_img_nb = 80
         mode = 'valid'
         
@@ -170,6 +170,12 @@ def main():
             elif args.input_mode == 'ct_masked_by_right_lung':
                 a = copy.deepcopy(data['lung_mask'])
                 a[a !=1] = 0
+                batch_x += 1  # shift lowest value from -1 to 0
+                batch_x = batch_x * a
+                batch_x -= 1
+            elif args.input_mode == 'ct_masked_by_lung':
+                a = copy.deepcopy(data['lung_mask'])
+                a[a > 0] = 1
                 batch_x += 1  # shift lowest value from -1 to 0
                 batch_x = batch_x * a
                 batch_x -= 1

@@ -31,7 +31,9 @@ class get_model(nn.Module):
         # self.relu = nn.ReLU()
         self.loss = loss
 
-    def forward(self, x):
+    def forward(self, x):  # x shape: (B,3+1, N)
+        # x = x.permute(0, 2, 1) # b, d, n	
+
         x, trans, trans_feat = self.feat(x)
         if self.dp_fc1_flag:
             x = F.relu(self.bn1(self.dp_fc1(self.fc1(x))))

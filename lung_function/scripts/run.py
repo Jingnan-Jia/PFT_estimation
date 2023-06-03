@@ -38,8 +38,8 @@ from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
 from lung_function.modules.trans import batch_bbox2_3D
 import sys
-sys.path.append("../modules/networks/models_pcd")
-sys.path.append("../modules")
+# sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/models_pcd")
+sys.path.append("/home/jjia/data/lung_function/lung_function/modules")
 
 args = get_args()
 global_lock = threading.Lock()
@@ -229,11 +229,11 @@ class Run:
 
             if args.input_mode == 'vessel_skeleton_pcd':
                 points = data[key].data.numpy()
-                if points.shape[0] == 1:  # batch size=1
-                    points = np.concatenate([points, points])
-                    data['label'] = np.concatenate(
-                        [data['label'], data['label']])
-                    data['label'] = torch.tensor(data['label'])
+                # if points.shape[0] == 1:  # batch size=1, change it to batch size of 2. TODO: Why?!
+                #     points = np.concatenate([points, points])
+                #     data['label'] = np.concatenate(
+                #         [data['label'], data['label']])
+                #     data['label'] = torch.tensor(data['label'])
 
                 points = provider.random_point_dropout(points)
                 # points[:, :, 0:3] = provider.random_scale_point_cloud(
@@ -243,6 +243,7 @@ class Run:
                 points = torch.Tensor(points)
                 
                 if 'pointnext' in args.net:  # data input for pointnext shoudl be split to two parts
+                    # 'pos' shape: Batch, N, 3;  'x' shape: Batch, 3+1, N
                     data[key] = {'pos': points[:, :, :3], 'x': points.transpose(2, 1)}
                 # else:   # switch dims
                 #     data[key] = points.transpose(2, 1)
@@ -300,13 +301,14 @@ class Run:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
             batch_y = data['label'].to(self.device)
 
-            if not self.flops_done:  # only calculate teh macs and params once
-                macs, params = thop.profile(self.net, inputs=(batch_x, ))
-                self.flops_done = True
-                log_param('macs_G', str(round(macs/1e9, 2)))
-                log_param('net_params_M', str(round(params/1e6, 2)))
+            # if not self.flops_done:  # only calculate macs and params once
+            #     macs, params = thop.profile(self.net, inputs=(batch_x, ))
+            #     self.flops_done = True
+            #     log_param('macs_G', str(round(macs/1e9, 2)))
+            #     log_param('net_params_M', str(round(params/1e6, 2)))
 
-    
+            batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
+
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference
                     with torch.no_grad():
@@ -332,10 +334,10 @@ class Run:
                     # batch_pat_id = np.expand_dims(batch_pat_id, axis=-1)  # change the shape from (N,) to (N, 1)
 
                     # shape (1,1)
-                    if args.input_mode == 'vessel_skeleton_pcd' and len(batch_pat_id) == 1:
-                        batch_pat_id = np.array(
-                            [[int(batch_pat_id[0])], [int(batch_pat_id[0])]])
-                        batch_pat_id = torch.tensor(batch_pat_id)
+                    # if args.input_mode == 'vessel_skeleton_pcd' and len(batch_pat_id) == 1:
+                    #     batch_pat_id = np.array(
+                    #         [[int(batch_pat_id[0])]])
+                    #     batch_pat_id = torch.tensor(batch_pat_id)
 
                     saved_label = np.hstack((batch_pat_id, batch_y_np))
                     saved_pred = np.hstack((batch_pat_id, pred_np))
@@ -544,6 +546,32 @@ def ensemble_4folds_testing(fold_ex_dt):
     print(ave_fpath)
 
         
+def ensemble_4folds_validation(fold_ex_dt_ls):
+    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
+    if type(fold_ex_dt_ls) is not list:
+        fold_ex_dt_ls = [fold_ex_dt_ls]
+    for fold_ex_dt in fold_ex_dt_ls:
+        dir0 = parent_dir + str(fold_ex_dt[0])
+        pred_all_fpath = dir0  + '/valid_pred.csv'
+        label_all_fpath = dir0  + '/valid_label.csv'
+        output_file_path = Path(pred_all_fpath)
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        df_pred_ls, df_label_ls = [], []
+        for i in [1,2,3,4]:
+            data_fpath = parent_dir + str(fold_ex_dt[i]) + '/valid_pred.csv'
+            label_fpath = parent_dir + str(fold_ex_dt[i]) + '/valid_label.csv'
+            df_pred = pd.read_csv(data_fpath,index_col=0)
+            df_label = pd.read_csv(label_fpath,index_col=0)
+
+            df_pred_ls.append(df_pred)
+            df_label_ls.append(df_label)
+        df_pred_valid = pd.concat(df_pred_ls)
+        df_label_valid = pd.concat(df_label_ls)
+        
+        df_pred_valid.to_csv(pred_all_fpath)
+        df_label_valid.to_csv(label_all_fpath)
+        print(pred_all_fpath)
 
         
 def main():
@@ -559,7 +587,8 @@ def main():
 
     mlflow.set_tracking_uri("http://nodelogin02:5000")
     experiment = mlflow.set_experiment("lung_fun_db15")
-    RECORD_FPATH = "results/record.log"
+    
+    RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
     # write super parameters from set_args.py to record file.
     id = record_1st(RECORD_FPATH)
 
@@ -615,24 +644,33 @@ def main():
                              2: all_folds_id_ls[1], 
                              3: all_folds_id_ls[2], 
                              4: all_folds_id_ls[3]}
+            
             ensemble_4folds_testing(fold_ex_dt)  
-            
-            parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-            label_fpath = parent_dir + str(fold_ex_dt[1]) + '/test_label.csv'
-            pred_fpath = parent_dir + str(fold_ex_dt[0]) + '/test_pred.csv'
-            
-            # add icc
-            icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-            icc_value_ensemble = {'ensemble_' + k:v  for k, v in icc_value.items()}  # update keys
-            print(icc_value_ensemble)
-            log_params(icc_value_ensemble)
-            
-            # add r
-            r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-            r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
-            log_params(r_p_value_ensemble)
+            ensemble_4folds_validation(fold_ex_dt)
 
+            for mode in ['valid', 'test']:
+                
+            
+                parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
+                label_fpath = parent_dir + str(fold_ex_dt[1]) + f'/{mode}_label.csv'
+                pred_fpath = parent_dir + str(fold_ex_dt[0]) + f'/{mode}_pred.csv'
+                
+                # add icc
+                icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+                icc_value_ensemble = {'ensemble_' + k:v  for k, v in icc_value.items()}  # update keys
+                print(icc_value_ensemble)
+                log_params(icc_value_ensemble)
+                
+                # add r
+                r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+                r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
+                log_params(r_p_value_ensemble)
 
+                # # add mae
+                # mae_dict = mae(pred_fpath, label_fpath, ignore_1st_column=True)
+                # mae_ensemble = {'ensemble_' + k:v for k, v in mae_dict.items()}
+                # print(mae_ensemble)
+                # log_params(mae_ensemble)    
 
 
 
