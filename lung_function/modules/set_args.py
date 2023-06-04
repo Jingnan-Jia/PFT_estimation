@@ -68,7 +68,7 @@ def get_args(jupyter=False):
         '--workers', help='number of workers for dataloader', type=int, default=6)
 
     # for gird image data
-    parser.add_argument('--balanced_sampler', help='balanced_sampler', type=boolean_string, default='False')
+    parser.add_argument('--balanced_sampler', help='balanced_sampler', type=boolean_string, default='True')
     parser.add_argument('--crop_foreground', help='load lung mask, apply RandomCropForegroundd',
                         type=boolean_string, default='True')
     parser.add_argument(
@@ -95,7 +95,7 @@ def get_args(jupyter=False):
                         type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
-                        type=boolean_string, default='True')
+                        type=boolean_string, default='False')
     parser.add_argument('--total_folds', choices=(4, 5),
                         help='4-fold training', type=int, default=4)
     parser.add_argument('--fold', choices=(1, 2, 3, 4),
@@ -106,7 +106,7 @@ def get_args(jupyter=False):
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=100)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=500)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',

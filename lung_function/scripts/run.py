@@ -544,7 +544,11 @@ def ensemble_4folds_testing(fold_ex_dt):
     df_ave = (df_ls[0] + df_ls[1] + df_ls[2] + df_ls[3])/4
     df_ave.to_csv(ave_fpath)
     print(ave_fpath)
-
+    
+    label_fpath_fold1 = parent_dir + str(fold_ex_dt[i]) + '/test_label.csv'
+    df_label = pd.read_csv(label_fpath_fold1,index_col=0)
+    df_label.to_csv(label_fpath)
+    
         
 def ensemble_4folds_validation(fold_ex_dt_ls):
     parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
