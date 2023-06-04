@@ -49,11 +49,11 @@ def farthest_point_sample(point, npoint):
 class ModelNetDataLoader(Dataset):
     def __init__(self, root, args, split='train', process_data=False):
         self.root = root
-        self.npoints = args.num_point
+        self.npoints = args.PNB
         self.process_data = process_data
-        self.uniform = args.use_uniform_sample
-        self.use_normals = args.use_normals
-        self.num_category = args.num_category
+        self.uniform = args.FPS_input
+        self.use_normals = True
+        self.num_category = 40
 
         if self.num_category == 10:
             self.catfile = os.path.join(self.root, 'modelnet10_shape_names.txt')
@@ -126,11 +126,11 @@ class ModelNetDataLoader(Dataset):
             else:
                 point_set = point_set[0:self.npoints, :]
                 
-        point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])
-        if not self.use_normals:
+        point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])  
+        if not self.use_normals:  # Only select the position 
             point_set = point_set[:, 0:3]
 
-        return point_set, label[0]
+        return point_set, label[0]  # point_set.shape: [batch, PNB, 3], label[0].shape: [Batch]
 
     def __getitem__(self, index):
         return self._get_item(index)
@@ -138,9 +138,14 @@ class ModelNetDataLoader(Dataset):
 
 if __name__ == '__main__':
     import torch
+    import sys
+    # sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/models_pcd")
+    sys.path.append("/home/jjia/data/lung_function/lung_function/modules")
+    from lung_function.modules.set_args import get_args
 
-    data = ModelNetDataLoader('/data/modelnet40_normal_resampled/', split='train')
-    DataLoader = torch.utils.data.DataLoader(data, batch_size=12, shuffle=True)
+    args = get_args()
+    data = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='train')
+    DataLoader = torch.utils.data.DataLoader(data,batch_size=12, shuffle=True)
     for point, label in DataLoader:
         print(point.shape)
         print(label.shape)

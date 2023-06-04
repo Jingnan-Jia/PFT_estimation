@@ -151,7 +151,7 @@ def get_args(jupyter=False):
     # parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
     # parser.add_argument('-j', '--workers', default=10, type=int, metavar='N',
     #                     help='number of data loading workers per process')
-    parser.add_argument('--evaluate_3d', default=True, type=boolean_string, help='eval 3d only')
+    # parser.add_argument('--evaluate_3d', default=True, type=boolean_string, help='eval 3d only')
     # parser.add_argument('--world-size', default=1, type=int,
     #                     help='number of nodes for distributed training')
     # parser.add_argument('--rank', default=0, type=int,

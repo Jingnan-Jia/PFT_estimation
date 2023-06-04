@@ -532,7 +532,9 @@ def ensemble_4folds_testing(fold_ex_dt):
     parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
 
     dir0 = parent_dir + str(fold_ex_dt[0])
-    ave_fpath =dir0  + '/test_pred.csv'
+    ave_fpath = dir0  + '/test_pred.csv'
+    label_fpath = dir0  + '/test_label.csv'
+
     output_file_path = Path(ave_fpath)
     output_file_path.parent.mkdir(parents=True, exist_ok=True)
     
