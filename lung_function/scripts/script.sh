@@ -71,7 +71,7 @@ conda activate py38
 
 # shellcheck disable=SC2046
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --remark="balanced sampler, lr=0.001"
-idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='pointmlp_reg' --pretrained_imgnet=True --batch_size=10 --input_mode="vessel_skeleton_pcd" --target='DLCOc_SB-FEV1-FVC-TLC_He' --remark="pcd" 
+idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='pointmlp_reg' --input_mode="vessel_skeleton_pcd" --remark="modelnet with pointmlp_reg"
 # idx=1; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='x3d_m' --pretrained_imgnet=True --batch_size=1 --input_mode="ct_masked_by_lung" --epochs=100 --target='TLC_He' --remark="1 outputs, from pretraining" &
 # wait
 

@@ -85,6 +85,8 @@ def get_loss(loss: str, mat_diff_loss_scale=None) -> nn.Module:
         loss_fun = nn.MSELoss() + nn.L1Loss()  # for regression task
     elif loss == 'msehigher':
         loss_fun = MSEHigher()
+    elif loss == 'ce':
+        loss_fun = nn.CrossEntropyLoss()
     else:
         raise Exception("loss function is not correct " + loss)
     return loss_fun

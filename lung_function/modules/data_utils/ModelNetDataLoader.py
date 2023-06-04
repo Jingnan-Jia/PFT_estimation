@@ -54,6 +54,7 @@ class ModelNetDataLoader(Dataset):
         self.uniform = args.FPS_input
         self.use_normals = True
         self.num_category = 40
+        self.use_normals_only1 = args.use_normals_only1
 
         if self.num_category == 10:
             self.catfile = os.path.join(self.root, 'modelnet10_shape_names.txt')
@@ -129,7 +130,8 @@ class ModelNetDataLoader(Dataset):
         point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])  
         if not self.use_normals:  # Only select the position 
             point_set = point_set[:, 0:3]
-
+        if self.use_normals_only1:
+            point_set = point_set[:, 0:4]
         return point_set, label[0]  # point_set.shape: [batch, PNB, 3], label[0].shape: [Batch]
 
     def __getitem__(self, index):

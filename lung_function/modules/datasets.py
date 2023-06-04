@@ -24,7 +24,7 @@ import glob
 import sys
 sys.path.append("../..")
 from torch.utils.data import WeightedRandomSampler
-
+from lung_function.modules.data_utils.ModelNetDataLoader import ModelNetDataLoader
 
 # import streamlit as st
 
@@ -250,125 +250,148 @@ def pat_from_json(data, fold=1) -> np.ndarray:
 
 
 def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'test'), nb=None, top_pats=None, balanced_sampler=False):
+    if args.dataset == 'modelnet40':
+        data_dt = {}
+        tr_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='train')
+        vd_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='test')
+        ts_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='test')
 
-    if args.ct_sp in ('1.0', '1.5'):
-        pad_truncated_dir = f"/home/jjia/data/dataset/lung_function/iso{args.ct_sp}/z{args.z_size}x{args.x_size}y{args.y_size}_pad_ratio{str(args.pad_ratio)}"
+        if 'train' in datasetmode:
+            train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size,
+                                        shuffle=True, num_workers=args.workers, persistent_workers=True, pin_memory=True)
+            data_dt['train'] = train_dataloader
+        if 'valid' in datasetmode:
+            valid_dataloader = DataLoader(vd_dataset, batch_size=args.batch_size,
+                                        shuffle=False, num_workers=args.workers, persistent_workers=True)
+            data_dt['valid'] = valid_dataloader
+        if 'test' in datasetmode:
+            test_dataloader = DataLoader(ts_dataset, batch_size=args.batch_size,
+                                        shuffle=False, num_workers=args.workers, persistent_workers=True)
+            data_dt['test'] = test_dataloader
+        return data_dt
     else:
-        pad_truncated_dir = f"/home/jjia/data/dataset/lung_function/ori_resolution/z{args.z_size}x{args.x_size}y{args.y_size}_pad_ratio{str(args.pad_ratio)}"
-
-    label_excel = pd.read_excel(label_fpath, engine='openpyxl')
-    label_excel = label_excel.sort_values(by=['subjectID'])
-    label_excel = clean_data(label_excel, data_dir, args.target, top_pats)
-
-     # 3 labels for one level
-    # nparray is easy for kfold split
-    data = np.array(label_excel.to_dict('records'))
-    for d in data:
-        if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
-            d['fpath'] = data_dir + '/' + d['subjectID'] + \
-                '_skeleton_coordinates140000.pt'
+        if args.ct_sp in ('1.0', '1.5'):
+            pad_truncated_dir = f"/home/jjia/data/dataset/lung_function/iso{args.ct_sp}/z{args.z_size}x{args.x_size}y{args.y_size}_pad_ratio{str(args.pad_ratio)}"
         else:
-            if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
-                if args.input_mode == "vessel":
-                    d['fpath'] = data_dir + '/' + \
-                        d['subjectID'] + '_GcVessel.nii.gz'
-                else:
-                    d['fpath'] = data_dir + '/' + d['subjectID'] + '.nii.gz'
+            pad_truncated_dir = f"/home/jjia/data/dataset/lung_function/ori_resolution/z{args.z_size}x{args.x_size}y{args.y_size}_pad_ratio{str(args.pad_ratio)}"
 
-                    # # raise Exception(f"wrong input mode: {args.input_mode}")
-                    # pass
-            else:  # TODO: not implemented yet
-                if args.input_mode == "vessel":
-                    d['fpath'] = pad_truncated_dir + '/' + \
-                        d['subjectID'] + '_GcVessel.nii.gz'
-                elif args.input_mode == "ct":
-                    d['fpath'] = pad_truncated_dir + \
-                        '/' + d['subjectID'] + '.nii.gz'
-                elif "ct_masked_by_vessel" in args.input_mode:
-                    d['fpath'] = pad_truncated_dir + \
-                        '/' + d['subjectID'] + '.nii.gz'
-                else:
-                    raise Exception(f"wrong input mode: {args.input_mode}")
+        label_excel = pd.read_excel(label_fpath, engine='openpyxl')
+        label_excel = label_excel.sort_values(by=['subjectID'])
+        label_excel = clean_data(label_excel, data_dir, args.target, top_pats)
 
-    # random.shuffle(data)  # Four fold are not right !!!
-    if args.test_pat == 'random_as_ori':
-        tr_data, vd_data, ts_data = pat_from_json(data, args.fold)
-    else:
-        kf = KFold(n_splits=args.total_folds, shuffle=True,
-                   random_state=args.kfold_seed)  # for future reproduction
+        # 3 labels for one level
+        # nparray is easy for kfold split
+        data = np.array(label_excel.to_dict('records'))
+        for d in data:
+            if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
+                d['fpath'] = data_dir + '/' + d['subjectID'] + \
+                    '_skeleton_coordinates140000.pt'
+            else:
+                if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
+                    if args.input_mode == "vessel":
+                        d['fpath'] = data_dir + '/' + \
+                            d['subjectID'] + '_GcVessel.nii.gz'
+                    else:
+                        d['fpath'] = data_dir + '/' + d['subjectID'] + '.nii.gz'
 
-        if hasattr(args, 'test_pat') and args.test_pat == 'zhiwei77':
-            ts_pat_ids = ['9071115', '6503304', '6587088', '7852072', '0911478', '5112278', '9075756', '4125990',
-                          '0584534', '4945176', '3034278', '2712128', '1043946', '9934096', '5240010', '7135410',
-                          '7421048', '9367440', '5576984', '0152440', '3154090', '1160750', '6484444', '1105441',
-                          '4628660', '4171220', '1146160', '2131790', '0163750', '2151769', '5174713', '8365740',
-                          '2524918', '9239682', '3243752', '2341332', '7234834', '9160660', '5262908', '2253442',
-                          '0992750', '3567342', '5271048', '8278747', '9662556', '0222357', '8229975', '0139552',
-                          '3901150', '9300979', '0298877', '3228438', '8960279', '4107789', '7740702', '7252792',
-                          '8303176', '8492153', '5299407', '7957098', '1499510', '5323286', '5325396', '3310402',
-                          '5813928', '6122288', '0315573', '2346390', '5869896', '0280727', '5352138', '8353193',
-                          '5321814', '6329587', '1397732',]
-            ts_data, tr_vd_data = [], []
-            for d in data:
-                if d['subjectID'].split('_')[-1] in ts_pat_ids:
-                    ts_data.append(d)
-                else:
-                    tr_vd_data.append(d)
-            ts_data = np.array(ts_data)
-            tr_vd_data = np.array(tr_vd_data)
-            print(f"length of testing data: {len(ts_data)}")
+                        # # raise Exception(f"wrong input mode: {args.input_mode}")
+                        # pass
+                else:  # TODO: not implemented yet
+                    if args.input_mode == "vessel":
+                        d['fpath'] = pad_truncated_dir + '/' + \
+                            d['subjectID'] + '_GcVessel.nii.gz'
+                    elif args.input_mode == "ct":
+                        d['fpath'] = pad_truncated_dir + \
+                            '/' + d['subjectID'] + '.nii.gz'
+                    elif "ct_masked_by_vessel" in args.input_mode:
+                        d['fpath'] = pad_truncated_dir + \
+                            '/' + d['subjectID'] + '.nii.gz'
+                    else:
+                        raise Exception(f"wrong input mode: {args.input_mode}")
+
+        # random.shuffle(data)  # Four fold are not right !!!
+        if args.test_pat == 'random_as_ori':
+            tr_data, vd_data, ts_data = pat_from_json(data, args.fold)
         else:
-            ts_nb = int(0.2 * len(data))
-            tr_vd_data, ts_data = data[:-ts_nb], data[-ts_nb:]
-        kf_list = list(kf.split(tr_vd_data))
-        tr_pt_idx, vd_pt_idx = kf_list[args.fold - 1]
-        tr_data = tr_vd_data[tr_pt_idx]
-        vd_data = tr_vd_data[vd_pt_idx]
-        print(f"length of training data: {len(tr_data)}")
-    if nb:
-        tr_data, vd_data, ts_data = tr_data[:nb], vd_data[:nb], ts_data[:nb]
-    # tr_data, vd_data, ts_data = tr_data[:4], vd_data[:4], ts_data[:4]
-    # for d in [tr_data, vd_data, ts_data]:
-    #     print("-----")
-    #     for d_one in d:
-    #         print(d_one['subjectID'])
-    # trxformd = xformd('train')
-    # vdxformd = xformd('valid')
-    # tsxformd = xformd('test')
-    if args.balanced_sampler and 'train' in datasetmode:
-        sampler = sampler_by_disext(tr_data, ref = 'DLCOc_SB')  # only for training dataset
-        shuffle = False
-    else:
-        shuffle = True
-        sampler = None
+            kf = KFold(n_splits=args.total_folds, shuffle=True,
+                    random_state=args.kfold_seed)  # for future reproduction
 
-    data_dt = {}
-    if 'train' in datasetmode:
-        tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd(
-            'train', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
-        train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size,
-                                      shuffle=shuffle, num_workers=args.workers, persistent_workers=True,
-                                      sampler=sampler, pin_memory=True)
-        data_dt['train'] = train_dataloader
+            if hasattr(args, 'test_pat') and args.test_pat == 'zhiwei77':
+                ts_pat_ids = ['9071115', '6503304', '6587088', '7852072', '0911478', '5112278', '9075756', '4125990',
+                            '0584534', '4945176', '3034278', '2712128', '1043946', '9934096', '5240010', '7135410',
+                            '7421048', '9367440', '5576984', '0152440', '3154090', '1160750', '6484444', '1105441',
+                            '4628660', '4171220', '1146160', '2131790', '0163750', '2151769', '5174713', '8365740',
+                            '2524918', '9239682', '3243752', '2341332', '7234834', '9160660', '5262908', '2253442',
+                            '0992750', '3567342', '5271048', '8278747', '9662556', '0222357', '8229975', '0139552',
+                            '3901150', '9300979', '0298877', '3228438', '8960279', '4107789', '7740702', '7252792',
+                            '8303176', '8492153', '5299407', '7957098', '1499510', '5323286', '5325396', '3310402',
+                            '5813928', '6122288', '0315573', '2346390', '5869896', '0280727', '5352138', '8353193',
+                            '5321814', '6329587', '1397732',]
+                ts_data, tr_vd_data = [], []
+                for d in data:
+                    if d['subjectID'].split('_')[-1] in ts_pat_ids:
+                        ts_data.append(d)
+                    else:
+                        tr_vd_data.append(d)
+                ts_data = np.array(ts_data)
+                tr_vd_data = np.array(tr_vd_data)
+                print(f"length of testing data: {len(ts_data)}")
+            else:
+                ts_nb = int(0.2 * len(data))
+                tr_vd_data, ts_data = data[:-ts_nb], data[-ts_nb:]
+            kf_list = list(kf.split(tr_vd_data))
+            tr_pt_idx, vd_pt_idx = kf_list[args.fold - 1]
+            tr_data = tr_vd_data[tr_pt_idx]
+            vd_data = tr_vd_data[vd_pt_idx]
+            print(f"length of training data: {len(tr_data)}")
+        if nb:
+            tr_data, vd_data, ts_data = tr_data[:nb], vd_data[:nb], ts_data[:nb]
+        # tr_data, vd_data, ts_data = tr_data[:4], vd_data[:4], ts_data[:4]
+        # for d in [tr_data, vd_data, ts_data]:
+        #     print("-----")
+        #     for d_one in d:
+        #         print(d_one['subjectID'])
+        # trxformd = xformd('train')
+        # vdxformd = xformd('valid')
+        # tsxformd = xformd('test')
+        if args.balanced_sampler and 'train' in datasetmode:
+            sampler = sampler_by_disext(tr_data, ref = 'DLCOc_SB')  # only for training dataset
+            shuffle = False
+        else:
+            shuffle = True
+            sampler = None
 
-    if 'valid' in datasetmode:
-        vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd(
-            'valid', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
-        valid_dataloader = DataLoader(vd_dataset, batch_size=args.batch_size,
-                                      shuffle=False, num_workers=args.workers, persistent_workers=True)
-        data_dt['valid'] = valid_dataloader
 
-    if 'test' in datasetmode:
-        ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd(
-            'test', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
-        test_dataloader = DataLoader(ts_dataset, batch_size=args.batch_size,
-                                     shuffle=False, num_workers=args.workers, persistent_workers=True)
-        data_dt['test'] = test_dataloader
 
-    # if 'trainnoaug' in datasetmode:
-    #     # training dataset without any data augmentation to simulate the valid transform to see if center crop helps
-    #     tr_dataset_no_aug = monai.data.CacheDataset(data=tr_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, pad_truncated_dir=pad_truncated_dir, target=args.target, crop_foreground=args.crop_foreground, pad_ratio=args.pad_ratio), num_workers=0, cache_rate=1)
-    #     train_dataloader_no_aug = DataLoader(tr_dataset_no_aug, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, persistent_workers=True)
-    #     data_dt['trainnoaug'] = train_dataloader_no_aug
 
-    return data_dt
+
+        data_dt = {}
+        if 'train' in datasetmode:
+            tr_dataset = monai.data.CacheDataset(data=tr_data, transform=xformd(
+                'train', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
+            train_dataloader = DataLoader(tr_dataset, batch_size=args.batch_size,
+                                        shuffle=shuffle, num_workers=args.workers, persistent_workers=True,
+                                        sampler=sampler, pin_memory=True)
+            data_dt['train'] = train_dataloader
+
+        if 'valid' in datasetmode:
+            vd_dataset = monai.data.CacheDataset(data=vd_data, transform=xformd(
+                'valid', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
+            valid_dataloader = DataLoader(vd_dataset, batch_size=args.batch_size,
+                                        shuffle=False, num_workers=args.workers, persistent_workers=True)
+            data_dt['valid'] = valid_dataloader
+
+        if 'test' in datasetmode:
+            ts_dataset = monai.data.CacheDataset(data=ts_data, transform=xformd(
+                'test', args, pad_truncated_dir=pad_truncated_dir), num_workers=0, cache_rate=1)
+            test_dataloader = DataLoader(ts_dataset, batch_size=args.batch_size,
+                                        shuffle=False, num_workers=args.workers, persistent_workers=True)
+            data_dt['test'] = test_dataloader
+
+        # if 'trainnoaug' in datasetmode:
+        #     # training dataset without any data augmentation to simulate the valid transform to see if center crop helps
+        #     tr_dataset_no_aug = monai.data.CacheDataset(data=tr_data, transform=xformd('valid', z_size=args.z_size, y_size=args.y_size, x_size=args.x_size, pad_truncated_dir=pad_truncated_dir, target=args.target, crop_foreground=args.crop_foreground, pad_ratio=args.pad_ratio), num_workers=0, cache_rate=1)
+        #     train_dataloader_no_aug = DataLoader(tr_dataset_no_aug, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, persistent_workers=True)
+        #     data_dt['trainnoaug'] = train_dataloader_no_aug
+
+        return data_dt

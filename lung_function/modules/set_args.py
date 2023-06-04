@@ -81,9 +81,12 @@ def get_args(jupyter=False):
                         type=float, default=1.5)
 
     # for point cloud data
+    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd'), type=str, default='modelnet40')
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
     parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
     parser.add_argument('--FPS_input', help='Fartest point sample input', type=boolean_string, default='False')
+    parser.add_argument('--use_normals_only1', help='use_normals_only1 to be comparible with vessel radius', type=boolean_string, default='True')
+
     parser.add_argument('--repeated_sample', help='if apply repeated sampling to get PNB points?', type=boolean_string, default='False')
     parser.add_argument('--position_center_norm', help='if use the relative coordinates: center point is 0,0,0', type=boolean_string, default='True')
 
@@ -96,7 +99,7 @@ def get_args(jupyter=False):
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
                         type=boolean_string, default='False')
-    parser.add_argument('--total_folds', choices=(4, 5),
+    parser.add_argument('--total_folds', choices=(1, 4, 5),
                         help='4-fold training', type=int, default=4)
     parser.add_argument('--fold', choices=(1, 2, 3, 4),
                         help='1 to 4', type=int, default=1)
@@ -188,6 +191,11 @@ def get_args(jupyter=False):
     if args.input_mode == 'vessel_skeleton_pcd':
         args.ct_sp = 'ori'
 
+    if args.dataset == 'modelnet40':
+        args.target = '-'*39  # it.split('-') =40
+        args.loss = 'ce'
+        args.total_folds = 1
+        args.batch_size = 20
     return args
 
 

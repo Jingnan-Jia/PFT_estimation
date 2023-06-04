@@ -115,6 +115,7 @@ class Run:
     """
 
     def __init__(self, args: Namespace, dataloader_flag=True):
+        self.args = args
         self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
         self.device = torch.device("cuda")  # 'cuda'
         self.target = [i.lstrip() for i in args.target.split('-')]
@@ -204,7 +205,10 @@ class Run:
 
     def step(self, mode, epoch_idx, save_pred=False):
         dataloader = self.data_dt[mode]
-        loss_fun_mae = nn.L1Loss()
+        if self.args.loss == 'ce':
+            loss_fun_mae = nn.CrossEntropyLoss()
+        else:
+            loss_fun_mae = nn.L1Loss()
 
         scaler = torch.cuda.amp.GradScaler()
         print(mode + "ing ......")
@@ -216,7 +220,10 @@ class Run:
         t0 = time.time()
         data_idx = 0
         loss_accu = 0
-        mae_accu_ls = [0 for _ in self.target]
+        if self.args.loss!='ce':
+            mae_accu_ls = [0 for _ in self.target]
+        else:
+            mae_accu_ls = [0]
         mae_accu_all = 0
         for data in dataloader:
             torch.cuda.empty_cache()  # avoid memory leak
@@ -227,7 +234,7 @@ class Run:
                            epoch_idx * len(dataloader))
             key = args.input_mode
 
-            if args.input_mode == 'vessel_skeleton_pcd':
+            if args.input_mode == 'vessel_skeleton_pcd' and args.dataset == 'vessel_pcd':
                 points = data[key].data.numpy()
                 # if points.shape[0] == 1:  # batch size=1, change it to batch size of 2. TODO: Why?!
                 #     points = np.concatenate([points, points])
@@ -248,8 +255,10 @@ class Run:
                 # else:   # switch dims
                 #     data[key] = points.transpose(2, 1)
                 
-
-            batch_x = data[key]  # n, c, z, y, x
+            if args.dataset == 'vessel_pcd':
+                batch_x = data[key]  # n, c, z, y, x
+            else:  # ModelNet, ShapeNet
+                batch_x = data[0]
             
             if args.input_mode == 'ct_masked_by_lung':
                 a = copy.deepcopy(data['lung_mask'])
@@ -299,7 +308,12 @@ class Run:
                 batch_x['x'] = batch_x['x'].to(self.device)  # n, z, y, x
             else:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
-            batch_y = data['label'].to(self.device)
+                
+            if args.dataset == 'vessel_pcd':
+                batch_y = data['label'].to(self.device)
+            else:  # ModelNet, ShapeNet
+                batch_y = data[1].to(self.device)
+            
 
             # if not self.flops_done:  # only calculate macs and params once
             #     macs, params = thop.profile(self.net, inputs=(batch_x, ))
@@ -349,11 +363,20 @@ class Run:
                 if args.loss == 'mse_regular':
                     loss = self.loss_fun(pred, batch_y, trans_feat)
                 else:
-                    loss = self.loss_fun(pred, batch_y)
+                    if args.loss == 'ce':
+                        loss = self.loss_fun(pred, batch_y.to(torch.int64))
+                    else:
+                        loss = self.loss_fun(pred, batch_y)
+                
                 with torch.no_grad():
-                    mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item()
-                              for i in range(len(self.target))]
-                    mae_all = loss_fun_mae(pred, batch_y).item()
+                    if len(batch_y.shape) == 2 and self.args.loss!='ce':
+                        mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(self.target))]
+                        mae_all = loss_fun_mae(pred, batch_y).item()
+                    else:
+                        mae_ls = [loss]
+                        mae_all = loss.item()
+
+                    
 
             if mode == 'train' and save_pred is not True:  # update gradients only when training
                 self.opt.zero_grad()
@@ -382,21 +405,16 @@ class Run:
             self.scheduler.step() # update the scheduler learning rate
 
         log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
-        log_metric(mode+'MAEEpoch_All', mae_accu_all /
-                   len(dataloader), epoch_idx)
+        log_metric(mode+'MAEEpoch_All', mae_accu_all / len(dataloader), epoch_idx)
         for t, i in zip(self.target, mae_accu_ls):
             log_metric(mode + 'MAEEpoch_' + t, i / len(dataloader), epoch_idx)
 
-        self.BestMetricDt[mode + 'LossEpochBest'] = min(
-            self.BestMetricDt[mode+'LossEpochBest'], loss_accu/len(dataloader))
+        self.BestMetricDt[mode + 'LossEpochBest'] = min( self.BestMetricDt[mode+'LossEpochBest'], loss_accu/len(dataloader))
         tmp = self.BestMetricDt[mode+'MAEEpoch_AllBest']
-        self.BestMetricDt[mode + 'MAEEpoch_AllBest'] = min(
-            self.BestMetricDt[mode+'MAEEpoch_AllBest'], mae_accu_all/len(dataloader))
+        self.BestMetricDt[mode + 'MAEEpoch_AllBest'] = min( self.BestMetricDt[mode+'MAEEpoch_AllBest'], mae_accu_all/len(dataloader))
 
-        log_metric(mode+'LossEpochBest',
-                   self.BestMetricDt[mode + 'LossEpochBest'], epoch_idx)
-        log_metric(mode+'MAEEpoch_AllBest',
-                   self.BestMetricDt[mode + 'MAEEpoch_AllBest'], epoch_idx)
+        log_metric(mode+'LossEpochBest', self.BestMetricDt[mode + 'LossEpochBest'], epoch_idx)
+        log_metric(mode+'MAEEpoch_AllBest', self.BestMetricDt[mode + 'MAEEpoch_AllBest'], epoch_idx)
 
         if self.BestMetricDt[mode+'MAEEpoch_AllBest'] == mae_accu_all/len(dataloader):
             for t, i in zip(self.target, mae_accu_ls):
