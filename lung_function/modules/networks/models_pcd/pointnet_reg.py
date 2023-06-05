@@ -64,3 +64,12 @@ class get_loss(torch.nn.Module):
 
         total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
         return total_loss
+    
+    
+if __name__ == '__main__':
+
+    data = torch.rand(2, 4, 1024 )
+    print("===> testing pointMLP ...")
+    model = get_model(pointnet_fc_ls=[1024, 512, 256], loss='mse', dp_fc1_flag=True)
+    out = model(data)
+    print(out.shape)

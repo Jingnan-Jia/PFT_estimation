@@ -171,22 +171,25 @@ class Run:
             else:
                 if '-' in args.pretrained_id:
                     pretrained_ids = args.pretrained_id.split('-')
-                    args.pretrained_id = pretrained_ids[self.fold]
+                    args.pretrained_id = pretrained_ids[self.fold-1]
 
-                pretrained_path = PFTPath(
-                    args.pretrained_id, check_id_dir=False, space=args.ct_sp)
-                ckpt = torch.load(pretrained_path.model_fpath,
-                                  map_location=self.device)
+                pretrained_path = PFTPath(args.pretrained_id, check_id_dir=False, space=args.ct_sp)
+                ckpt = torch.load(pretrained_path.model_fpath, map_location=self.device)
 
                 if type(ckpt) is dict and 'model' in ckpt:
                     model = ckpt['model']
-                    if 'metric_name' in ckpt:
-                        if 'validMAEEpoch_AllBest' == ckpt['metric_name']:
-                            validMAEEpoch_AllBest = ckpt['current_metric_value']
+                    # if 'metric_name' in ckpt:  # not applicable if the pre-trained model is from ModelNet40
+                    #     if 'validMAEEpoch_AllBest' == ckpt['metric_name']:
+                    #         validMAEEpoch_AllBest = ckpt['current_metric_value']
+                    if 'pointmlp_reg' == self.args.net:
+                        model = {k:v for k,v in model.items() if 'classifier' != k.split('.')[0]}
+                              
                 else:
                     model = ckpt
                 # model_fpath need to exist
-                self.net.load_state_dict(model, strict=False)  # strict=false due to the calculation of FLOPs and params
+                # strict=false due to the calculation of FLOPs and params. In addition, the pre-trained model may be a 
+                # classification model with different output nodes
+                self.net.load_state_dict(model, strict=False)  
                 # move the new initialized layers to GPU
                 self.net = self.net.to(self.device)
         if dataloader_flag:

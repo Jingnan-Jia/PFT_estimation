@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from pointnet2_utils import PointNetSetAbstraction
-
+import torch
 
 class get_model(nn.Module):
     def __init__(self, num_class, npoint_base=512, radius_base=40, nsample_base=64):
@@ -22,7 +22,7 @@ class get_model(nn.Module):
 
     def forward(self, xyzr):
         B, _, _ = xyzr.shape  # Batch, 3+1, N
-      
+
         l1_xyz, l1_points = self.sa1(xyzr[:,:3,:], xyzr[:,3:4,:])
         l2_xyz, l2_points = self.sa2(l1_xyz, l1_points)
         l3_xyz, l3_points = self.sa3(l2_xyz, l2_points)
@@ -35,3 +35,10 @@ class get_model(nn.Module):
 
         return x
 
+if __name__ == '__main__':
+
+    data = torch.rand(2, 4, 1024 )
+    print("===> testing pointMLP ...")
+    model = get_model(num_class=5)
+    out = model(data)
+    print(out.shape)
