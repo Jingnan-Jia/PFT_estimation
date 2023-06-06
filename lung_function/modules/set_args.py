@@ -113,7 +113,7 @@ def get_args(jupyter=False):
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
-                        type=float, default=0.0001)
+                        type=float, default=0.001)
     parser.add_argument('--adamw', help='adamw optimizer',
                         type=boolean_string, default='False')
     parser.add_argument('--cosine_decay', help='cosine_decay',
