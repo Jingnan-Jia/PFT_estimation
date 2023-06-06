@@ -181,8 +181,18 @@ class Run:
                     # if 'metric_name' in ckpt:  # not applicable if the pre-trained model is from ModelNet40
                     #     if 'validMAEEpoch_AllBest' == ckpt['metric_name']:
                     #         validMAEEpoch_AllBest = ckpt['current_metric_value']
-                    if 'pointmlp_reg' == self.args.net:
-                        model = {k:v for k,v in model.items() if 'classifier' != k.split('.')[0]}
+                    client = mlflow.MlflowClient()
+                    experiment = mlflow.get_experiment_by_name("lung_fun_db15")
+                    pre_run =  client.search_runs(experiment_ids=[experiment.experiment_id], filter_string=f"params.id = '{str(args.pretrained_id)}'")[0]
+                    if pre_run.params.dataset in ['modelnet40']:   # pre-trained by an classification dataset
+                        assert pre_run.params.net == self.args.net
+                        if 'pointmlp_reg' == self.args.net:
+                            model = {k:v for k,v in model.items() if 'classifier' != k.split('.')[0]}
+                        elif 'pointnet2_reg' == self.args.net:
+                            # model = {k:v for k,v in model.items() if 'fc1' in k }
+                            excluded_keys = ['fc1', 'bn1', 'drop1', 'fc2', 'bn2', 'drop2', 'fc3']  # FC layers
+                            model = {key: value for key, value in model.items() if all(excluded_key not in key for excluded_key in excluded_keys)}
+
                               
                 else:
                     model = ckpt
