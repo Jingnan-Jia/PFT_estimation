@@ -184,8 +184,8 @@ class Run:
                     client = mlflow.MlflowClient()
                     experiment = mlflow.get_experiment_by_name("lung_fun_db15")
                     pre_run =  client.search_runs(experiment_ids=[experiment.experiment_id], filter_string=f"params.id = '{str(args.pretrained_id)}'")[0]
-                    if pre_run.params.dataset in ['modelnet40']:   # pre-trained by an classification dataset
-                        assert pre_run.params.net == self.args.net
+                    if pre_run.data.params['dataset'] in ['modelnet40']:   # pre-trained by an classification dataset
+                        assert pre_run.data.params['net'] == self.args.net
                         if 'pointmlp_reg' == self.args.net:
                             model = {k:v for k,v in model.items() if 'classifier' != k.split('.')[0]}
                         elif 'pointnet2_reg' == self.args.net:
