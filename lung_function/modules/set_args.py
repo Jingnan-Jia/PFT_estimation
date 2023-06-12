@@ -82,6 +82,8 @@ def get_args(jupyter=False):
 
     # for point cloud data
     parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd'), type=str, default='vessel_pcd')
+    parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='True')
+
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
     parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
     parser.add_argument('--FPS_input', help='Fartest point sample input', type=boolean_string, default='False')
@@ -95,7 +97,7 @@ def get_args(jupyter=False):
     parser.add_argument('--mode', choices=('train', 'infer',
                         'continue_train'), help='mode', type=str, default='train')
     parser.add_argument('--pretrained_id', help='id used for inference, or continue_train',
-                        type=str, default="3020-3021-3022-3023")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961
+                        type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
                         type=boolean_string, default='False')
