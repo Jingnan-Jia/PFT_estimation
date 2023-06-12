@@ -222,27 +222,20 @@ class Run:
 
     def step(self, mode, epoch_idx, save_pred=False, suffix=None):
         dataloader = self.data_dt[mode]
-        if self.args.loss == 'ce':
-            loss_fun_mae = nn.CrossEntropyLoss()
-        else:
-            loss_fun_mae = nn.L1Loss()
+        loss_fun_mae = nn.L1Loss()
 
         scaler = torch.cuda.amp.GradScaler()
         print(mode + "ing ......")
-        if mode == 'train':
-            self.net.train()
-        else:
-            self.net.eval()
+        self.net.eval()
 
         t0 = time.time()
         data_idx = 0
         loss_accu = 0
-        if self.args.loss!='ce':
-            mae_accu_ls = [0 for _ in self.target]
-        else:
-            mae_accu_ls = [0]
+        mae_accu_ls = [0]
         mae_accu_all = 0
         for data in dataloader:
+            if 7114639 not in data['pat_id']:
+                continue
             torch.cuda.empty_cache()  # avoid memory leak
             data_idx += 1
             if epoch_idx < 3:  # only show first 3 epochs' data loading time
@@ -253,15 +246,9 @@ class Run:
 
             if args.input_mode == 'vessel_skeleton_pcd' and args.dataset == 'vessel_pcd':
                 points = data[key].data.numpy()
-                # if points.shape[0] == 1:  # batch size=1, change it to batch size of 2. TODO: Why?!
-                #     points = np.concatenate([points, points])
-                #     data['label'] = np.concatenate(
-                #         [data['label'], data['label']])
-                #     data['label'] = torch.tensor(data['label'])
-
+         
                 points = provider.random_point_dropout(points)
-                # points[:, :, 0:3] = provider.random_scale_point_cloud(
-                #     points[:, :, 0:3])
+             
                 points[:, :, 0:3] = provider.shift_point_cloud(
                     points[:, :, 0:3], shift_range=args.shift_range)
                 points = torch.Tensor(points)
@@ -269,57 +256,13 @@ class Run:
                 if 'pointnext' in args.net:  # data input for pointnext shoudl be split to two parts
                     # 'pos' shape: Batch, N, 3;  'x' shape: Batch, 3+1, N
                     data[key] = {'pos': points[:, :, :3], 'x': points.transpose(2, 1)}
-                # else:   # switch dims
-                #     data[key] = points.transpose(2, 1)
-                
+           
             if args.dataset == 'vessel_pcd':
                 batch_x = data[key]  # n, c, z, y, x
             else:  # ModelNet, ShapeNet
                 batch_x = data[0]
             
-            if args.input_mode == 'ct_masked_by_lung':
-                a = copy.deepcopy(data['lung_mask'])
-                a[a > 0] = 1
-                batch_x += 1  # shift lowest value from -1 to 0
-                batch_x = batch_x * a
-                batch_x -= 1
-            elif args.input_mode == 'ct_masked_by_left_lung':
-                a = copy.deepcopy(data['lung_mask'])
-                a[a !=2] = 0
-                batch_x += 1  # shift lowest value from -1 to 0
-                batch_x = batch_x * a
-                batch_x -= 1
-            elif args.input_mode == 'ct_masked_by_right_lung':
-                a = copy.deepcopy(data['lung_mask'])
-                a[a !=1] = 0
-                batch_x += 1  # shift lowest value from -1 to 0
-                batch_x = batch_x * a
-                batch_x -= 1
-            elif args.input_mode in ('ct_left', 'ct_right', 'ct_upper', 'ct_lower', 'ct_front', 'ct_back'):
-                lung_mask = copy.deepcopy(data['lung_mask'])
-                lung_mask[lung_mask > 0] = 1
-                if 'in_lung' in args.input_mode:  # only keep values in lung
-                    batch_x += 1  # shift lowest value from -1 to 0
-                    batch_x = batch_x * lung_mask  # masked by lung
-                    batch_x -= 1
-
-                z_bottom, z_top, y_bottom, y_top, x_bottom, x_top = batch_bbox2_3D(lung_mask)
-                z_mid, y_mid, x_mid = (z_bottom + z_top)//2, (y_bottom + y_top)//2, (x_bottom + x_top)//2
-                for idx in range(batch_x.shape[0]):
-                    if args.input_mode == 'ct_upper':
-                        batch_x[idx, :, :z_mid[idx], :, :] = - 1  # remove bottom
-                    elif args.input_mode == 'ct_lower':
-                        batch_x[idx, :, z_mid[idx]:, :, :] = - 1  # remove upper
-                    elif args.input_mode == 'ct_back':
-                        batch_x[idx, :, :, y_mid[idx]:, :] = - 1  # remove front, keep back
-                    elif args.input_mode == 'ct_front':
-                        batch_x[idx, :, :, :y_mid[idx], :] = - 1  # remove back, keep front
-                    elif args.input_mode == 'ct_left':
-                        batch_x[idx, :, :, :, :x_mid[idx]] = - 1  # remove right
-                    else:  # args.input_mode == 'ct_front':
-                        batch_x[idx, :, :, :, x_mid[idx]:] = - 1  # remove left
-            else:
-                pass
+            
             if 'pointnext' in args.net:  # data input for pointnext shoudl be split to two parts
                 batch_x['pos'] = batch_x['pos'].to(self.device)
                 batch_x['x'] = batch_x['x'].to(self.device)  # n, z, y, x
@@ -332,100 +275,63 @@ class Run:
                 batch_y = data[1].to(self.device)
             
 
-            # if not self.flops_done:  # only calculate macs and params once
-            #     macs, params = thop.profile(self.net, inputs=(batch_x, ))
-            #     self.flops_done = True
-            #     log_param('macs_G', str(round(macs/1e9, 2)))
-            #     log_param('net_params_M', str(round(params/1e6, 2)))
-
             batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
 
             with torch.cuda.amp.autocast():
-                if mode != 'train' or save_pred:  # save pred for inference
-                    with torch.no_grad():
-                        if args.loss == 'mse_regular':
-                            pred, trans_feat = self.net(batch_x)
-                        else:
-                            pred = self.net(batch_x)
-                else:
-                    if args.loss == 'mse_regular':
-                        pred, trans_feat = self.net(batch_x)
-                    else:
-                        pred = self.net(batch_x)
-                if save_pred:
-                    head = ['pat_id']
-                    head.extend(self.target)
-
-                    batch_pat_id = data['pat_id'].cpu(
-                    ).detach().numpy()  # shape (N,1)
-                    batch_pat_id = int2str(batch_pat_id)  # shape (N,1)
-
-                    batch_y_np = batch_y.cpu().detach().numpy()  # shape (N, out_nb)
-                    pred_np = pred.cpu().detach().numpy()  # shape (N, out_nb)
-                    # batch_pat_id = np.expand_dims(batch_pat_id, axis=-1)  # change the shape from (N,) to (N, 1)
-
-                    # shape (1,1)
-                    # if args.input_mode == 'vessel_skeleton_pcd' and len(batch_pat_id) == 1:
-                    #     batch_pat_id = np.array(
-                    #         [[int(batch_pat_id[0])]])
-                    #     batch_pat_id = torch.tensor(batch_pat_id)
-
-                    saved_label = np.hstack((batch_pat_id, batch_y_np))
-                    saved_pred = np.hstack((batch_pat_id, pred_np))
-                    
-                    if suffix not in (None, 0, '0'):
-                        pred_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_'+ suffix + '.csv')
-                        label_fpath = self.mypath.save_label_fpath(mode).replace('.csv', '_'+ suffix + '.csv')
-                    else:
-                        pred_fpath = self.mypath.save_pred_fpath(mode)
-                        label_fpath = self.mypath.save_label_fpath(mode)
-                        
-                    medutils.appendrows_to(label_fpath, saved_label, head=head)
-                    medutils.appendrows_to(pred_fpath, saved_pred, head=head)
-
-                if args.loss == 'mse_regular':
-                    loss = self.loss_fun(pred, batch_y, trans_feat)
-                else:
-                    if args.loss == 'ce':
-                        loss = self.loss_fun(pred, batch_y.to(torch.int64))
-                    else:
-                        loss = self.loss_fun(pred, batch_y)
-                
                 with torch.no_grad():
-                    if len(batch_y.shape) == 2 and self.args.loss!='ce':
-                        mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(self.target))]
-                        mae_all = loss_fun_mae(pred, batch_y).item()
-                    else:
-                        mae_ls = [loss]
-                        mae_all = loss.item()
+                    print('batch_x ori', batch_x[:, -1, :])
+                    batch_min = torch.min(batch_x[:, -1, :])
+                    batch_x[:, -1, :] = batch_x[:, -1, :] - (0.5 * float(suffix))
+                    batch_x[:, -1, :][batch_x[:, -1, :]<batch_min] = batch_min
+                    print('batch_x after', batch_x[:, -1, :])
+
+                    pred = self.net(batch_x)
+                    print(f"pred: {pred}")
+                
+            if save_pred:
+                head = ['pat_id']
+                head.extend(self.target)
+
+                batch_pat_id = data['pat_id'].cpu(
+                ).detach().numpy()  # shape (N,1)
+                batch_pat_id = int2str(batch_pat_id)  # shape (N,1)
+
+                batch_y_np = batch_y.cpu().detach().numpy()  # shape (N, out_nb)
+                pred_np = pred.cpu().detach().numpy()  # shape (N, out_nb)
+                
+
+                saved_label = np.hstack((batch_pat_id, batch_y_np))
+                saved_pred = np.hstack((batch_pat_id, pred_np))
+                
+                if suffix not in (None, 0, '0'):
+                    pred_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_increase_r'+ suffix + 'mm.csv')
+                    label_fpath = self.mypath.save_label_fpath(mode).replace('.csv', '_increase_r'+ suffix + 'mm.csv')
+                else:
+                    pred_fpath = self.mypath.save_pred_fpath(mode)
+                    label_fpath = self.mypath.save_label_fpath(mode)
+                    
+                medutils.appendrows_to(label_fpath, saved_label, head=head)
+                medutils.appendrows_to(pred_fpath, saved_pred, head=head)
+
+            loss = self.loss_fun(pred, batch_y)
+            
+            with torch.no_grad():
+                mae_ls = [loss]
+                mae_all = loss.item()
 
                     
-
-            if mode == 'train' and save_pred is not True:  # update gradients only when training
-                self.opt.zero_grad()
-                scaler.scale(loss).backward()
-                scaler.step(self.opt)
-                scaler.update()
             loss_cpu = loss.item()
             print('loss:', loss_cpu)
-            # log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader))
-            # log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader))
-            # [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader)) for t, m in zip(self.target, mae_ls)]
-
             loss_accu += loss_cpu
             for i, mae in enumerate(mae_ls):
                 mae_accu_ls[i] += mae
             mae_accu_all += mae_all
 
-            # print('pred:', pred.clone().detach().cpu().numpy())
-            # print('label:', batch_y.clone().detach().cpu().numpy())
             if epoch_idx < 3:
                 t2 = time.time()
                 log_metric('TUpdateWBatch', t2-t1, data_idx +
                            epoch_idx*len(dataloader))
                 t0 = t2  # reset the t0
-        if args.cosine_decay:
-            self.scheduler.step() # update the scheduler learning rate
 
         log_metric(mode+'LossEpoch', loss_accu/len(dataloader), epoch_idx)
         log_metric(mode+'MAEEpoch_All', mae_accu_all / len(dataloader), epoch_idx)
@@ -444,14 +350,6 @@ class Run:
                 log_metric(mode + 'MAEEpoch_' + t + 'Best',
                            i / len(dataloader), epoch_idx)
 
-            if mode == 'valid':
-                print(
-                    f"Current mae is {self.BestMetricDt[mode+'MAEEpoch_AllBest']}, better than the previous mae: {tmp}, save model.")
-                ckpt = {'model': self.net.state_dict(),
-                        'metric_name': mode+'MAEEpoch_AllBest',
-                        'current_metric_value': self.BestMetricDt[mode+'MAEEpoch_AllBest']}
-                torch.save(ckpt, self.mypath.model_fpath)
-
 
 @dec_record_cgpu(args.outfile)
 def run(args: Namespace):
@@ -459,50 +357,12 @@ def run(args: Namespace):
     Run the whole  experiment using this args.
     """
     myrun = Run(args)
-    modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
-    if args.mode == 'infer':
-        for mode in ['valid', 'test']:
-            for i in range(100):
-                myrun.step(mode,  0,  save_pred=True, suffix=str(i))
-    else:  # 'train' or 'continue_train'
-        for i in range(args.epochs):  # 20000 epochs
-            myrun.step('train', i)
-            if i % args.valid_period == 0:  # run the validation
-                myrun.step('valid',  i)
-                myrun.step('test',  i)
-            if i == args.epochs - 1:  # load best model and do inference
-                print('start inference')
-                if os.path.exists(myrun.mypath.model_fpath):
-                    ckpt = torch.load(myrun.mypath.model_fpath,
-                                      map_location=myrun.device)
-                    if isinstance(ckpt, dict) and 'model' in ckpt:
-                        model = ckpt['model']
-                    else:
-                        model = ckpt
-                    # model_fpath need to exist
-                    myrun.net.load_state_dict(model)
-                    print(f"load net from {myrun.mypath.model_fpath}")
-                else:
-                    print(
-                        f"no model found at {myrun.mypath.model_fpath}, let me save the current model to this lace")
-                    ckpt = {'model': myrun.net.state_dict()}
-                    torch.save(ckpt, myrun.mypath.model_fpath)
-                for mode in modes:
-                    myrun.step(mode, i, save_pred=True)
-
-    mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-    label_ls = [mypath.save_label_fpath(mode) for mode in modes]
-    pred_ls = [mypath.save_pred_fpath(mode) for mode in modes]
-
-    for pred_fpath, label_fpath in zip(pred_ls, label_ls):
-        r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-        log_params(r_p_value)
-        print('r_p_value:', r_p_value)
-
-        icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-        log_params(icc_value)
-        print('icc:', icc_value)
-
+    for mode in ['valid', 'test']:
+        args.mode = mode
+        for i in range(10):
+            myrun.step(mode,  0,  save_pred=True, suffix=str(i))
+    
+    
     print('Finish all things!')
 
 
@@ -726,28 +586,6 @@ def main():
     # write super parameters from set_args.py to record file.
     id = record_1st(RECORD_FPATH)
 
-    # if merge 4 fold results, uncommit the following code.
-    # From here ======================================================
-    # current_id = 427
-    # id_ls = [428, 431, 433, 435]
-    # client = MlflowClient()
-    # run_ls = client.search_runs(experiment_ids=[experiment.experiment_id],
-    #                             filter_string=f"params.id LIKE '%{current_id}%'")
-    # run_ = run_ls[0]
-    # run_id = run_.info.run_id
-    # with mlflow.start_run(run_id=run_id, tags={"mlflow.note.content": args.remark}):
-    #     args.id = id  # do not need to pass id seperately to the latter function
-
-    # to here =======================================================
-    # if args.mode == 'infer':  # get the id of the run
-    #     client = MlflowClient()
-    #     run_ls = client.search_runs(experiment_ids=[experiment.experiment_id], filter_string=f"params.id = '{args.pretrained_id}'")
-    #     run_ = run_ls[0]
-    #     run_id = run_.info.run_id
-    #     with mlflow.start_run(run_id=run_id, tags={"mlflow.note.content": args.remark}):
-    #         args.id = args.pretrained_id  # log the metrics to the pretrained_id
-    #         run(args)
-    # else:
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
 
@@ -766,48 +604,10 @@ def main():
                 args.fold = fold
                 args.pretrained_id = get_args().pretrained_id
                 args.id = id  # do not need to pass id seperately to the latter function
-                # args.mode = 'infer'  # disable it for normal training
                 tmp_args_dt = vars(args)
                 log_params(tmp_args_dt)
                 run(args)
-        log_metrics_all_folds_average(
-            all_folds_id_ls, current_id, experiment)
         
-        fold_ex_dt = {0: current_id, 
-                            1: all_folds_id_ls[0], 
-                            2: all_folds_id_ls[1], 
-                            3: all_folds_id_ls[2], 
-                            4: all_folds_id_ls[3]}
-        
-        ensemble_4folds_testing(fold_ex_dt)  
-        ensemble_4folds_validation(fold_ex_dt)
-
-        for mode in ['valid', 'test']:
-            
-        
-            parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-            label_fpath = parent_dir + str(fold_ex_dt[0]) + f'/{mode}_label.csv'
-            pred_fpath = parent_dir + str(fold_ex_dt[0]) + f'/{mode}_pred.csv'
-            
-            # add icc
-            icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-            icc_value_ensemble = {'ensemble_' + k:v  for k, v in icc_value.items()}  # update keys
-            print(icc_value_ensemble)
-            log_params(icc_value_ensemble)
-            
-            # add r
-            r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-            r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
-            log_params(r_p_value_ensemble)
-
-            # add mae
-            mae_dict = mae(pred_fpath, label_fpath, ignore_1st_column=True)
-            mae_ensemble = {'ensemble_' + k:v for k, v in mae_dict.items()}
-            print(mae_ensemble)
-            log_params(mae_ensemble)    
-
-
-
 
 if __name__ == "__main__":
     main()

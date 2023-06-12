@@ -99,7 +99,7 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
     keys = (inputmode, )
     if inputmode == 'vessel_skeleton_pcd':
         xforms = [LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
-        repeated_sample=args.repeated_sample, FPS_input=args.FPS_input),
+        repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1),
                   SampleShuffled(
                       keys=keys, PNB=PNB, repeated_sample=args.repeated_sample),
                   # ShiftCoordinated(keys=keys, position_center_norm=args.position_center_norm),
@@ -249,7 +249,7 @@ def pat_from_json(data, fold=1) -> np.ndarray:
     return train, valid, test
 
 
-def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'test'), nb=None, top_pats=None, balanced_sampler=False):
+def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'test'), nb=None, top_pats=None):
     if args.dataset == 'modelnet40':
         data_dt = {}
         tr_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='train')

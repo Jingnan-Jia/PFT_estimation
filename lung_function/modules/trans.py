@@ -159,8 +159,16 @@ class SampleShuffled(MapTransform, RandomizableTransform):
             #     choice = np.random.choice(len(data[key]), self.PNB, replace=True)
             #     data[key] = data[key][choice, :]
             # else:             
-            choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
-            data[key] = data[key][choice]  # sample data
+            big_nb = 1000
+            big_vessels = data[key][:big_nb]  # first 1 k points is enough to represent the big vessels
+            choice = np.random.choice(len(data[key][big_nb:]), self.PNB-big_nb, replace=self.repeated_sample)
+            others = data[key][choice]
+            all =  np.concatenate((big_vessels, others), axis=0)
+            np.random.shuffle(all)
+            data[key] = all
+            
+            # choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
+            # data[key] = data[key][choice]  # sample data
 
             # if self.sub_shuffle:  # shuffle the sub data
             #     np.random.shuffle(data[key])    # shuffle data inplace
@@ -196,6 +204,15 @@ class LoadPointCloud(MapTransform):
         if self.position_center_norm:
             xyz_mm -= xyz_mm.mean(axis=0)
         xyzr_mm = np.concatenate((xyz_mm, xyzr['data'][:,-1].reshape(-1,1)), axis=1)
+        
+        # 按照最后一列进行排序
+        sorted_indices = np.argsort(xyzr_mm[:, -1])
+
+        # 使用排序后的索引重新排列数组的行
+        xyzr_mm = xyzr_mm[sorted_indices]
+
+        # xyzr_mm = sorted(xyzr_mm, key = lambda a_entry: a_entry[-1])
+        
         y = np.array([data[i] for i in self.target])
         file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
         new_data = {'pat_id': np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
