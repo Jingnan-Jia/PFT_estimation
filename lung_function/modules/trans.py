@@ -176,13 +176,15 @@ class SampleShuffled(MapTransform, RandomizableTransform):
         return data
 
 class LoadPointCloud(MapTransform):
-    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None):
-        super().__init__(keys, allow_missing_keys=True)
+    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False):
+        super().__init__(keys, allow_missing_keys=True,)
         self.target = [i.lstrip() for i in target.split('-')]
         self.position_center_norm = position_center_norm
         self.PNB = PNB
         self.repeated_sample = repeated_sample
         self.FPS_input = FPS_input
+        self.set_all_r_to_1 = set_all_r_to_1
+        self.set_all_xyz_to_1 = set_all_xyz_to_1
 
 
     def __call__(self, data: TransInOut) -> TransInOut:
@@ -204,6 +206,11 @@ class LoadPointCloud(MapTransform):
         if self.position_center_norm:
             xyz_mm -= xyz_mm.mean(axis=0)
         xyzr_mm = np.concatenate((xyz_mm, xyzr['data'][:,-1].reshape(-1,1)), axis=1)
+        if self.set_all_r_to_1:
+            xyzr_mm[:, -1] = 1
+        if self.set_all_xyz_to_1:
+            xyzr_mm[:, :-1] = 1
+
         
         # 按照最后一列进行排序
         sorted_indices = np.argsort(xyzr_mm[:, -1])

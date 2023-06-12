@@ -588,6 +588,8 @@ def main():
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
+        args.set_all_r_to_1 = False
+        
 
         current_id = id
         tmp_args_dt = vars(args)
