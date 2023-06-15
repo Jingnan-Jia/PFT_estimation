@@ -113,6 +113,8 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
             min_value, max_value = 0, 1
         elif 'ct' in inputmode:
             min_value, max_value = -1500, 1500
+        elif inputmode == 'lung_masks':
+            min_value, max_value = 0, 1
         else:
             raise Exception(f"wrong input mode: {inputmode}")
         if crop_foreground:

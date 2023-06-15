@@ -274,8 +274,12 @@ class Run:
                 
             if args.dataset == 'vessel_pcd':
                 batch_x = data[key]  # n, c, z, y, x
-            else:  # ModelNet, ShapeNet
+            elif args.dataset == 'modelnet40':  # ModelNet, ShapeNet
                 batch_x = data[0]
+            elif args.dataset == 'ct':
+                pass
+            else:
+                pass
             
             if args.input_mode == 'ct_masked_by_lung':
                 a = copy.deepcopy(data['lung_mask'])
@@ -283,6 +287,10 @@ class Run:
                 batch_x += 1  # shift lowest value from -1 to 0
                 batch_x = batch_x * a
                 batch_x -= 1
+            elif args.input_mode == 'lung_masks':
+   
+                batch_x = data['lung_mask']
+            
             elif args.input_mode == 'ct_masked_by_left_lung':
                 a = copy.deepcopy(data['lung_mask'])
                 a[a !=2] = 0
@@ -326,7 +334,7 @@ class Run:
             else:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
                 
-            if args.dataset == 'vessel_pcd':
+            if args.dataset in ['vessel_pcd', 'ct']:
                 batch_y = data['label'].to(self.device)
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
@@ -337,8 +345,8 @@ class Run:
             #     self.flops_done = True
             #     log_param('macs_G', str(round(macs/1e9, 2)))
             #     log_param('net_params_M', str(round(params/1e6, 2)))
-
-            batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
+            if args.dataset in ['vessel_pcd', 'modelnet40']:
+                batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
 
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference

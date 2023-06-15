@@ -21,7 +21,7 @@ def get_args(jupyter=False):
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
                                           'vgg11_3d', 'pointnext', 'pointmlp_reg'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='pointnet2_reg')
+                        help='network name', type=str, default='x3d_m') 
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -48,7 +48,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=10)
+                        type=int, default=1)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -58,10 +58,10 @@ def get_args(jupyter=False):
     parser.add_argument('--input_mode', help='what to input', 
         choices=('ct', 'ct_masked_by_torso', 'ct_left','ct_masked_by_lung','ct_masked_by_left_lung', 'ct_masked_by_right_lung', 
         'ct_right','ct_left_in_lung', 'ct_right_in_lung','ct_upper','ct_lower', 'ct_front', 'ct_back','ct_upper_in_lung',
-        'ct_lower_in_lung', 'ct_front_in_lung', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel', 'vessel_skeleton_pcd', 
+        'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel', 'vessel_skeleton_pcd', 
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
         'IntrA_cls'),
-        type=str, default='vessel_skeleton_pcd')
+        type=str, default='lung_masks')
     parser.add_argument('--target', help='target prediction', type=str,
                         default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
@@ -81,8 +81,8 @@ def get_args(jupyter=False):
                         type=float, default=1.5)
 
     # for point cloud data
-    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd'), type=str, default='vessel_pcd')
-    parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='True')
+    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct'), type=str, default='ct')
+    parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='False')
     parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
 
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
@@ -98,7 +98,7 @@ def get_args(jupyter=False):
     parser.add_argument('--mode', choices=('train', 'infer',
                         'continue_train'), help='mode', type=str, default='train')
     parser.add_argument('--pretrained_id', help='id used for inference, or continue_train',
-                        type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961
+                        type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961 3020-3021-3022-3023
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
                         type=boolean_string, default='False')
