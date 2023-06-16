@@ -20,7 +20,7 @@ def get_args(jupyter=False):
     parser.add_argument('--net', choices=('vgg11_3d', 'vit3', 'vgg16_3d', 'vgg19_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2',
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
-                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp'),  # 'r2plus1d_18' out of memory
+                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg'),  # 'r2plus1d_18' out of memory
                         help='network name', type=str, default='pointnet2_reg') 
     
     # Point cloud network configuration
@@ -191,6 +191,8 @@ def get_args(jupyter=False):
 
     if args.x_size == 0 or args.y_size == 0:
         raise Exception("0 x_size or y_size: ")
+    if args.net == 'mlp_reg':
+        args.set_all_xyz_to_1 = True
     if args.input_mode == 'vessel_skeleton_pcd':
         args.ct_sp = 'ori'
         args.batch_size = 5

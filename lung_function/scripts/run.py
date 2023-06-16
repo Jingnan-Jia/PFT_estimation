@@ -345,6 +345,8 @@ class Run:
             #     log_param('net_params_M', str(round(params/1e6, 2)))
             if 'pcd' == args.input_mode[-3:]:  #TODO: 
                 batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
+            if args.net == 'mlp_reg' and args.set_all_xyz_to_1 is True:
+                batch_x = batch_x[:, -1, :]
 
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference

@@ -3,9 +3,9 @@
 # @Author  : Jingnan
 # @Email   : jiajingnan2222@gmail.com
 
-from .cnn_fc3d import Cnn3fc1, Cnn3fc2, Cnn4fc2, Cnn5fc2, Cnn6fc2, Vgg11_3d, Vgg16_3d, Vgg19_3d
-from .cnn_fc3d_enc import Cnn3fc1Enc, Cnn3fc2Enc, Cnn4fc2Enc, Cnn5fc2Enc, Cnn6fc2Enc, Vgg11_3dEnc
-from .vit3 import ViT3
+from lung_function.modules.networks.cnn_fc3d import Cnn3fc1, Cnn3fc2, Cnn4fc2, Cnn5fc2, Cnn6fc2, Vgg11_3d, Vgg16_3d, Vgg19_3d
+from lung_function.modules.networks.cnn_fc3d_enc import Cnn3fc1Enc, Cnn3fc2Enc, Cnn4fc2Enc, Cnn5fc2Enc, Cnn6fc2Enc, Vgg11_3dEnc
+from lung_function.modules.networks.vit3 import ViT3
 from torch import nn
 import torch
 import torchvision
@@ -20,7 +20,41 @@ from lung_function.modules.ulip.models.pointmlp.pointMLP import pointMLP
 from lung_function.modules.ulip.models.pointnet2.pointnet2 import Pointnet2_Ssg
 from lung_function.modules.ulip.models.pointbert.point_encoder import PointTransformer
 # from lung_function.modules.ulip.models.pointnext.pointnext import PointNEXT
+import torch.nn.functional as F
 
+class MLP_reg(nn.Module):
+    def __init__(self, num_classes,  fc_ls=[1024, 512, 256]):
+        super().__init__()
+        self.num_classes = num_classes
+        self.fc_ls = fc_ls
+        
+        self.fc1 = nn.Linear(fc_ls[0], fc_ls[1])
+        self.dp_fc1 = nn.Dropout(p=0.4)
+        self.bn1 = nn.BatchNorm1d(fc_ls[1])
+        if len(fc_ls) == 2:
+            self.fc2 = nn.Linear(fc_ls[1], num_classes)
+        elif len(fc_ls) == 3:            
+            self.fc2 = nn.Linear(fc_ls[1], fc_ls[2])
+            self.bn2 = nn.BatchNorm1d(fc_ls[2])
+            self.dropout = nn.Dropout(p=0.4)
+            self.fc3 = nn.Linear(fc_ls[2], num_classes)
+        else:      
+            raise Exception(f"wrong fc_ls: {fc_ls}, the length should be 2 or 3")
+        
+
+    def forward(self, x):  # x shape: (B,N)
+
+        x = F.relu(self.bn1(self.dp_fc1(self.fc1(x))))
+        if len(self.fc_ls) == 2:
+            x = self.fc2(x)
+        elif len(self.fc_ls) == 3:
+            x = F.relu(self.bn2(self.dropout(self.fc2(x))))
+            x = self.fc3(x)
+        
+        else:
+            raise Exception(f"wrong fc_ls: {self.fc_ls}, the length should be 2 or 3")
+
+        return x
 
 
 def get_net_3d(name: str,
@@ -48,7 +82,9 @@ def get_net_3d(name: str,
             
         # net = getattr(ULIP_models, args.net)(args=args)
         # args.model: 'ULIP_PN_SSG', 'ULIP_PN_NEXT', 'ULIP_PN_MLP', 'ULIP_PointBERT'
-    if name == 'pointmlp_reg':
+    if name == 'mlp_reg':
+        net = MLP_reg(num_classes=nb_cls, fc_ls=[args.PNB, 512, 256])
+    elif name == 'pointmlp_reg':
         from pointmlp_reg import pointMLP
         net = pointMLP(num_classes=nb_cls, points=1024)
     # elif name == 'pointbert_reg':
