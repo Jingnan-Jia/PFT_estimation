@@ -20,7 +20,7 @@ def get_args(jupyter=False):
     parser.add_argument('--net', choices=('vgg11_3d', 'vit3', 'vgg16_3d', 'vgg19_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2',
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
-                                          'vgg11_3d', 'pointnext', 'pointmlp_reg'),  # 'r2plus1d_18' out of memory
+                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp'),  # 'r2plus1d_18' out of memory
                         help='network name', type=str, default='pointnet2_reg') 
     
     # Point cloud network configuration
@@ -48,7 +48,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=1)
+                        type=int, default=5)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -61,7 +61,7 @@ def get_args(jupyter=False):
         'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel',  
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
         'IntrA_cls_pcd', 'modelnet40_pcd', 'lung_mask_pcd', 'vessel_skeleton_pcd'),
-        type=str, default='lung_mask_pcd')
+        type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--target', help='target prediction', type=str,
                         default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
@@ -81,7 +81,7 @@ def get_args(jupyter=False):
                         type=float, default=1.5)
 
     # for point cloud data
-    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct', 'lung_mask_pcd'), type=str, default='lung_mask_pcd')
+    # parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct', 'lung_mask_pcd'), type=str, default='lung_mask_pcd')
     parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='False')
     parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
 
@@ -193,6 +193,7 @@ def get_args(jupyter=False):
         raise Exception("0 x_size or y_size: ")
     if args.input_mode == 'vessel_skeleton_pcd':
         args.ct_sp = 'ori'
+        args.batch_size = 5
     elif args.input_mode == 'lung_mask_pcd':
         args.ct_sp = '1.5'
         args.PNB = 28000

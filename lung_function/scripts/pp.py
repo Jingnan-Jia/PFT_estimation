@@ -6,7 +6,7 @@ class Solution(object):
         :rtype: List[int]
         """
         def lfunc(nums,target):
-            n = len(nums)-1
+            n = len(nums)
             left = 0
             right = n - 1
             while(left<=right):
@@ -19,7 +19,7 @@ class Solution(object):
         def rfunc(nums,target):
             n = len(nums)-1
             left = 0
-            right = n - 1
+            right = n 
             while(left<=right):
                 mid = (left+right)//2
                 if nums[mid] > target:
