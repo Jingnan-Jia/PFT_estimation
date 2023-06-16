@@ -244,11 +244,9 @@ class Run:
                            epoch_idx * len(dataloader))
             key = args.input_mode
 
-            if args.input_mode == 'vessel_skeleton_pcd' and args.dataset == 'vessel_pcd':
-                points = data[key].data.numpy()
-         
-                points = provider.random_point_dropout(points)
-             
+            if args.input_mode == ['vessel_skeleton_pcd', 'lung_mask_pcd']:
+                points = data[key].data.numpy()         
+                points = provider.random_point_dropout(points)             
                 points[:, :, 0:3] = provider.shift_point_cloud(
                     points[:, :, 0:3], shift_range=args.shift_range)
                 points = torch.Tensor(points)
@@ -257,7 +255,7 @@ class Run:
                     # 'pos' shape: Batch, N, 3;  'x' shape: Batch, 3+1, N
                     data[key] = {'pos': points[:, :, :3], 'x': points.transpose(2, 1)}
            
-            if args.dataset == 'vessel_pcd':
+            if args.input_mode != 'modelnet40_pcd':
                 batch_x = data[key]  # n, c, z, y, x
             else:  # ModelNet, ShapeNet
                 batch_x = data[0]
@@ -269,13 +267,13 @@ class Run:
             else:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
                 
-            if args.dataset == 'vessel_pcd':
+            if args.input_mode not in  in ['vessel_pcd', 'lung_mask_pcd']:
                 batch_y = data['label'].to(self.device)
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
             
-
-            batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
+            if 'pcd' == args.input_mode[-3:]:  #TODO: 
+                batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
 
             with torch.cuda.amp.autocast():
                 with torch.no_grad():

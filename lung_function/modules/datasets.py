@@ -97,7 +97,8 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
 
     post_pad_size = [int(i * pad_ratio) for i in [z_size, y_size, x_size]]
     keys = (inputmode, )
-    if inputmode == 'vessel_skeleton_pcd':
+    if inputmode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
+        
         xforms = [LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
         repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1, 
         set_all_xyz_to_1=args.set_all_xyz_to_1),
@@ -253,7 +254,7 @@ def pat_from_json(data, fold=1) -> np.ndarray:
 
 
 def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'test'), nb=None, top_pats=None):
-    if args.dataset == 'modelnet40':
+    if args.input_mode == 'modelnet40_pcd':
         data_dt = {}
         tr_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='train')
         vd_dataset = ModelNetDataLoader('/home/jjia/data/dataset/pointcloud/modelnet40_normal_resampled/',args=args, split='test')
@@ -289,6 +290,9 @@ def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'tes
             if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
                 d['fpath'] = data_dir + '/' + d['subjectID'] + \
                     '_skeleton_coordinates140000.pt'
+            elif args.input_mode == 'lung_mask_pcd':  # do not need to chare if padding or not
+                d['fpath'] = data_dir + '/' + d['subjectID'] + \
+                    '_LungMask_coordinates.pt'
             else:
                 if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
                     if args.input_mode == "vessel":

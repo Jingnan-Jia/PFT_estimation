@@ -21,7 +21,7 @@ def get_args(jupyter=False):
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
                                           'vgg11_3d', 'pointnext', 'pointmlp_reg'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='x3d_m') 
+                        help='network name', type=str, default='pointnet2_reg') 
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -55,17 +55,17 @@ def get_args(jupyter=False):
                         type=int, default=711)
     parser.add_argument('--test_pat', help='testing patients', choices=(
         'zhiwei77', 'random', 'random_as_ori'), type=str, default='random_as_ori')  # 
-    parser.add_argument('--input_mode', help='what to input', 
+    parser.add_argument('--input_mode', help='what to input. This influence the network architecture and dataloader/trans. I do not split it to two parameters. Otherwise, the two need to be synthesized', 
         choices=('ct', 'ct_masked_by_torso', 'ct_left','ct_masked_by_lung','ct_masked_by_left_lung', 'ct_masked_by_right_lung', 
         'ct_right','ct_left_in_lung', 'ct_right_in_lung','ct_upper','ct_lower', 'ct_front', 'ct_back','ct_upper_in_lung',
-        'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel', 'vessel_skeleton_pcd', 
+        'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel',  
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
-        'IntrA_cls'),
-        type=str, default='lung_masks')
+        'IntrA_cls_pcd', 'modelnet40_pcd', 'lung_mask_pcd', 'vessel_skeleton_pcd'),
+        type=str, default='lung_mask_pcd')
     parser.add_argument('--target', help='target prediction', type=str,
                         default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
-        '--workers', help='number of workers for dataloader', type=int, default=6)
+        '--workers', help='number of workers for dataloader', type=int, default=12)
 
     # for gird image data
     parser.add_argument('--balanced_sampler', help='balanced_sampler', type=boolean_string, default='True')
@@ -81,7 +81,7 @@ def get_args(jupyter=False):
                         type=float, default=1.5)
 
     # for point cloud data
-    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct'), type=str, default='ct')
+    parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct', 'lung_mask_pcd'), type=str, default='lung_mask_pcd')
     parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='False')
     parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
 
@@ -193,12 +193,17 @@ def get_args(jupyter=False):
         raise Exception("0 x_size or y_size: ")
     if args.input_mode == 'vessel_skeleton_pcd':
         args.ct_sp = 'ori'
-
-    if args.dataset == 'modelnet40':
+    elif args.input_mode == 'lung_mask_pcd':
+        args.ct_sp = '1.5'
+        args.PNB = 28000
+        args.batch_size = 5
+    elif args.input_mode == 'modelnet40_pcd':
         args.target = '-'*39  # it.split('-') =40
         args.loss = 'ce'
         args.total_folds = 1
         args.batch_size = 20
+    else:
+        pass
     return args
 
 

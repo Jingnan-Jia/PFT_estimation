@@ -251,7 +251,7 @@ class Run:
                            epoch_idx * len(dataloader))
             key = args.input_mode
 
-            if args.input_mode == 'vessel_skeleton_pcd' and args.dataset == 'vessel_pcd':
+            if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:  # first 3 columns are xyz, last 1 is value
                 points = data[key].data.numpy()
                 # if points.shape[0] == 1:  # batch size=1, change it to batch size of 2. TODO: Why?!
                 #     points = np.concatenate([points, points])
@@ -272,12 +272,10 @@ class Run:
                 # else:   # switch dims
                 #     data[key] = points.transpose(2, 1)
                 
-            if args.dataset == 'vessel_pcd':
+            if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
                 batch_x = data[key]  # n, c, z, y, x
-            elif args.dataset == 'modelnet40':  # ModelNet, ShapeNet
+            elif args.input_mode == 'modelnet40_pcd':  # ModelNet, ShapeNet
                 batch_x = data[0]
-            elif args.dataset == 'ct':
-                pass
             else:
                 pass
             
@@ -334,7 +332,7 @@ class Run:
             else:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
                 
-            if args.dataset in ['vessel_pcd', 'ct']:
+            if args.input_mode not in ['modelnet40_pcd']:
                 batch_y = data['label'].to(self.device)
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
@@ -345,7 +343,7 @@ class Run:
             #     self.flops_done = True
             #     log_param('macs_G', str(round(macs/1e9, 2)))
             #     log_param('net_params_M', str(round(params/1e6, 2)))
-            if args.dataset in ['vessel_pcd', 'modelnet40']:
+            if 'pcd' == args.input_mode[-3:]:  #TODO: 
                 batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
 
             with torch.cuda.amp.autocast():
