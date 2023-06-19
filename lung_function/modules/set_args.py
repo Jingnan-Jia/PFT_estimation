@@ -96,9 +96,9 @@ def get_args(jupyter=False):
 
     # training parameters
     parser.add_argument('--mode', choices=('train', 'infer',
-                        'continue_train'), help='mode', type=str, default='infer')
+                        'continue_train'), help='mode', type=str, default='train')
     parser.add_argument('--pretrained_id', help='id used for inference, or continue_train',
-                        type=str, default="3006-3007-3008-3009")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961 3020-3021-3022-3023
+                        type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961 3020-3021-3022-3023
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
                         type=boolean_string, default='False')
