@@ -260,8 +260,12 @@ class Run:
                 #     data['label'] = torch.tensor(data['label'])
 
                 points = provider.random_point_dropout(points)
-                # points[:, :, 0:3] = provider.random_scale_point_cloud(
-                #     points[:, :, 0:3])
+                if args.scale_range not in ['0', 0, None, False, 'None']:
+                    scale_low, scale_high = args.scale_range.split('-')
+                    scale_low, scale_high = float(scale_low), float(scale_high)
+                    
+                    points[:, :, 0:3] = provider.random_scale_point_cloud(
+                        points[:, :, 0:3], scale_low=scale_low, scale_high=scale_high)
                 points[:, :, 0:3] = provider.shift_point_cloud(
                     points[:, :, 0:3], shift_range=args.shift_range)
                 points = torch.Tensor(points)
@@ -470,7 +474,7 @@ def run(args: Namespace):
     modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
     if args.mode == 'infer':
         for mode in ['valid', 'test']:
-            for i in range(100):
+            for i in range(1):
                 myrun.step(mode,  0,  save_pred=True, suffix=str(i))
     else:  # 'train' or 'continue_train'
         for i in range(args.epochs):  # 20000 epochs

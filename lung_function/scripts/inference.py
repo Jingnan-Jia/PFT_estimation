@@ -43,6 +43,7 @@ import sys
 sys.path.append("/home/jjia/data/lung_function/lung_function/modules")
 
 args = get_args()
+args.pretrained_id = '3006-3007-3008-3009'
 global_lock = threading.Lock()
 
 
@@ -234,7 +235,7 @@ class Run:
         mae_accu_ls = [0]
         mae_accu_all = 0
         for data in dataloader:
-            if 7114639 not in data['pat_id']:
+            if 8365740 not in data['pat_id']:
                 continue
             torch.cuda.empty_cache()  # avoid memory leak
             data_idx += 1
@@ -244,9 +245,11 @@ class Run:
                            epoch_idx * len(dataloader))
             key = args.input_mode
 
-            if args.input_mode == ['vessel_skeleton_pcd', 'lung_mask_pcd']:
-                points = data[key].data.numpy()         
-                points = provider.random_point_dropout(points)             
+ 
+            if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:  # first 3 columns are xyz, last 1 is value
+                points = data[key].data.numpy()
+                points = provider.random_point_dropout(points)
+             
                 points[:, :, 0:3] = provider.shift_point_cloud(
                     points[:, :, 0:3], shift_range=args.shift_range)
                 points = torch.Tensor(points)
@@ -254,11 +257,13 @@ class Run:
                 if 'pointnext' in args.net:  # data input for pointnext shoudl be split to two parts
                     # 'pos' shape: Batch, N, 3;  'x' shape: Batch, 3+1, N
                     data[key] = {'pos': points[:, :, :3], 'x': points.transpose(2, 1)}
-           
-            if args.input_mode != 'modelnet40_pcd':
+
+            if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
                 batch_x = data[key]  # n, c, z, y, x
-            else:  # ModelNet, ShapeNet
+            elif args.input_mode == 'modelnet40_pcd':  # ModelNet, ShapeNet
                 batch_x = data[0]
+            else:
+                pass
             
             
             if 'pointnext' in args.net:  # data input for pointnext shoudl be split to two parts
@@ -267,7 +272,7 @@ class Run:
             else:
                 batch_x = batch_x.to(self.device)  # n, z, y, x
                 
-            if args.input_mode not in  in ['vessel_pcd', 'lung_mask_pcd']:
+            if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
                 batch_y = data['label'].to(self.device)
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
@@ -278,7 +283,7 @@ class Run:
             with torch.cuda.amp.autocast():
                 with torch.no_grad():
                     print('batch_x ori', batch_x[:, -1, :])
-                    batch_min = torch.min(batch_x[:, -1, :])
+                    batch_min = 0 # torch.min(batch_x[:, -1, :])
                     batch_x[:, -1, :] = batch_x[:, -1, :] - (0.5 * float(suffix))
                     batch_x[:, -1, :][batch_x[:, -1, :]<batch_min] = batch_min
                     print('batch_x after', batch_x[:, -1, :])
@@ -355,215 +360,13 @@ def run(args: Namespace):
     Run the whole  experiment using this args.
     """
     myrun = Run(args)
-    for mode in ['valid', 'test']:
+    for mode in ['test']:
         args.mode = mode
         for i in range(10):
             myrun.step(mode,  0,  save_pred=True, suffix=str(i))
     
     
     print('Finish all things!')
-
-
-def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='params'):
-    """
-    Average the logs form mlflow for all folds.
-    """
-    current_run = retrive_run(experiment=experiment, reload_id=current_id)
-
-    all_dt = {}
-    for id in id_ls:
-        mlflow_run = retrive_run(experiment=experiment, reload_id=id)
-        if key == 'params':
-            target_dt = mlflow_run.data.params
-            current_dt = current_run.data.params
-        elif key == 'metrics':
-            target_dt = mlflow_run.data.metrics
-            current_dt = current_run.data.metrics
-        else:
-            raise Exception(
-                f"Expected key of 'params' or 'metrics', but got key: {key}")
-
-        for k, v in target_dt.items():
-            if k not in current_dt:  # re-writing parameters in mlflow is not allowed
-                if k not in all_dt:
-                    all_dt[k] = []
-                # this is a value, not a list (see bellow)
-                if not isinstance(all_dt[k], list):
-                    continue
-                try:
-                    all_dt[k].append(float(v))
-                except Exception:
-                    # can not be converted to numbers which can not be averaged
-                    all_dt[k] = v
-
-    all_dt = {k: statistics.mean(v) if isinstance(
-        v, list) else v for k, v in all_dt.items()}
-
-    return all_dt
-
-
-def log_metrics_all_folds_average(id_ls: list, id: int, experiment):
-    """
-    Get the 4 folds metrics and parameters
-    Average them
-    Log average values to the parent mlflow
-    """
-    # average parameters
-    param_dt = average_all_folds(id_ls, id, experiment, key='params')
-    if len(param_dt) < 100:
-        log_params(param_dt)
-
-    elif len(param_dt) >= 100 and len(param_dt) < 200:
-        dt_1 = {k: param_dt[k] for i, k in enumerate(param_dt) if i < 100}
-        dt_2 = {k: param_dt[k] for i, k in enumerate(param_dt) if i >= 100}
-        log_params(dt_1)
-        log_params(dt_2)
-    else:
-        raise Exception(
-            f"Our logging request can contain at most 200 params. Got {len(param_dt)} params")
-
-    # average metrics
-    metric_dt = average_all_folds(id_ls, id, experiment, key='metrics')
-    log_metrics(metric_dt, 0)
- 
-
-
-def ensemble_4folds_testing(fold_ex_dt):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-
-    dir0 = parent_dir + str(fold_ex_dt[0])
-    ave_fpath = dir0  + '/test_pred.csv'
-    label_fpath = dir0  + '/test_label.csv'
-
-    output_file_path = Path(ave_fpath)
-    output_file_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    df_ls = []
-    for i in [1,2,3,4]:
-        data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/test_pred*.csv')
-        for data_fpath in data_fpath_ls:
-            df = pd.read_csv(data_fpath,index_col=0)
-            df_ls.append(df)
-            
-    df_ave = sum(df_ls)/len(df_ls)
-    df_ave.to_csv(ave_fpath)
-    print(ave_fpath)
-    
-    label_fpath_fold1 = parent_dir + str(fold_ex_dt[i]) + '/test_label.csv'
-    df_label = pd.read_csv(label_fpath_fold1,index_col=0)
-    df_label.to_csv(label_fpath)
-    
-        
-def ensemble_4folds_validation(fold_ex_dt_ls):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-    if type(fold_ex_dt_ls) is not list:
-        fold_ex_dt_ls = [fold_ex_dt_ls]
-    for fold_ex_dt in fold_ex_dt_ls:
-        dir0 = parent_dir + str(fold_ex_dt[0])
-        pred_all_fpath = dir0  + '/valid_pred.csv'
-        label_all_fpath = dir0  + '/valid_label.csv'
-        output_file_path = Path(pred_all_fpath)
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        df_pred_ls, df_label_ls = [], []
-        for i in [1,2,3,4]:
-            
-            df_ls = []
-            data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/valid_pred*.csv')
-            for data_fpath in data_fpath_ls:
-                df = pd.read_csv(data_fpath,index_col=0)
-                df_ls.append(df)
-            df_pred = sum(df_ls)/len(df_ls)
-    
-            label_fpath = parent_dir + str(fold_ex_dt[i]) + '/valid_label.csv'
-            df_label = pd.read_csv(label_fpath,index_col=0)
-
-            df_pred_ls.append(df_pred)
-            df_label_ls.append(df_label)
-        df_pred_valid = pd.concat(df_pred_ls)
-        df_label_valid = pd.concat(df_label_ls)
-        
-        df_pred_valid.to_csv(pred_all_fpath)
-        df_label_valid.to_csv(label_all_fpath)
-        print(pred_all_fpath)
-
-def mae(pred_fpath, label_fpath, ignore_1st_column=True):
-    mae_dict = {}
-
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-    if 'ID' == label.columns[0]:
-        del label["ID"]
-    if 'ID' == pred.columns[0]:
-        del pred["ID"]
-
-    original_columns = label.columns
-
-    # ori_columns = list(label.columns)
-
-    for column in original_columns:
-        abs_err = (pred[column] - label[column]).abs()
-        mae_value = abs_err.mean().round(2)
-        std_value = abs_err.std().round(2)
-        
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        mae_dict['mae_' + prefix + '_' + column] = mae_value
-        mae_dict['mae_std_' + prefix + '_' + column] = std_value
-
-    return mae_dict
-
-def me(pred_fpath, label_fpath, ignore_1st_column=True):
-    mae_dict = {}
-
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-    if 'ID' == label.columns[0]:
-        del label["ID"]
-    if 'ID' == pred.columns[0]:
-        del pred["ID"]
-
-    original_columns = label.columns
-
-    for column in original_columns:
-        abs_err = (pred[column] - label[column])
-        mae_value = abs_err.mean().round(2)
-        std_value = abs_err.std().round(2)
-        
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        mae_dict['me_' + prefix + '_' + column] = mae_value
-        mae_dict['me_std_' + prefix + '_' + column] = std_value
-
-    return mae_dict
-
-def mre(pred_fpath, label_fpath, ignore_1st_column=True):
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-
-    rel_err_dict = {}
-    for column in label.columns:
-        mae_value = (pred[column] - label[column]).abs()
-        rel_err = mae_value / label[column]
-        # print(f'relative error for {column}:')
-        # for i in rel_err:
-        #     if i > 2:
-        #         print(i)
-        mean_rel_err = rel_err.mean().round(2)
-        mean_rel_err_std = rel_err.std().round(2)
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        rel_err_dict['mre_' + prefix + '_' + column] = mean_rel_err
-        rel_err_dict['mre_std_' + prefix + '_' + column] = mean_rel_err_std
-       
-    return rel_err_dict
 
         
 def main():
