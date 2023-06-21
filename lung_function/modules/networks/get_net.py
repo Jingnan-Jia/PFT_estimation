@@ -104,7 +104,8 @@ def get_net_3d(name: str,
 
             net = pcd_model.get_model(nb_cls, pointnet_fc_ls, loss, dp_fc1_flag)
         else:  # pointnet++=pointnet2
-            net = pcd_model.get_model(nb_cls, 
+            
+            net = pcd_model.get_model(nb_cls, args.in_channel,
                                       npoint_base=args.npoint_base, 
                                       radius_base=args.radius_base, 
                                       nsample_base=args.nsample_base)

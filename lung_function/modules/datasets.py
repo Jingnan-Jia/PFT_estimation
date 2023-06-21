@@ -101,7 +101,7 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
         
         xforms = [LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
         repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1, 
-        set_all_xyz_to_1=args.set_all_xyz_to_1),
+        set_all_xyz_to_1=args.set_all_xyz_to_1, in_channel=args.in_channel),
                   SampleShuffled(
                       keys=keys, PNB=PNB, repeated_sample=args.repeated_sample),
                   # ShiftCoordinated(keys=keys, position_center_norm=args.position_center_norm),
@@ -289,7 +289,7 @@ def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'tes
         for d in data:
             if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
                 d['fpath'] = data_dir + '/' + d['subjectID'] + \
-                    '_skeleton_coordinates140000.pt'
+                    '_skeleton_coordinates140000_wt_neighbors.pt'
             elif args.input_mode == 'lung_mask_pcd':  # do not need to chare if padding or not
                 d['fpath'] = data_dir + '/' + d['subjectID'] + \
                     '_LungMask_coordinates.pt'

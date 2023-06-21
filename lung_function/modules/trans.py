@@ -176,7 +176,7 @@ class SampleShuffled(MapTransform, RandomizableTransform):
         return data
 
 class LoadPointCloud(MapTransform):
-    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False):
+    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False, in_channel=False):
         super().__init__(keys, allow_missing_keys=True,)
         self.target = [i.lstrip() for i in target.split('-')]
         self.position_center_norm = position_center_norm
@@ -185,31 +185,48 @@ class LoadPointCloud(MapTransform):
         self.FPS_input = FPS_input
         self.set_all_r_to_1 = set_all_r_to_1
         self.set_all_xyz_to_1 = set_all_xyz_to_1
+        self.in_channel = in_channel
 
 
     def __call__(self, data: TransInOut) -> TransInOut:
         fpath = data['fpath']
         # print(f"loading {fpath}")
         xyzr = pd.read_pickle(fpath)
+        if self.in_channel>3:
+            data_key = 'data_wt_neighbors'
+        else:
+            data_key  = 'data'
+        
         if self.repeated_sample:
             # remove the interpolated points
             tmp_ls = []
-            for row in xyzr['data']:  # check three coordinates are integers
+            for row in xyzr[data_key]:  # check three coordinates are integers
                 if not row[0]%1 and not row[1]%1 and not row[2]%1:  
                     tmp_ls.append(row)
-            xyzr['data'] = np.array(tmp_ls)
+            xyzr[data_key] = np.array(tmp_ls)
 
         # choice = np.random.choice(len(xyzr['data']), self.PNB, replace=self.repeated_sample)
         # xyzr['data'] = xyzr['data'][choice]  # sample data
 
-        xyz_mm = xyzr['data'][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
+        xyz_mm = xyzr[data_key][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
         if self.position_center_norm:
             xyz_mm -= xyz_mm.mean(axis=0)
-        xyzr_mm = np.concatenate((xyz_mm, xyzr['data'][:,-1].reshape(-1,1)), axis=1)
+        xyzr_mm = np.concatenate((xyz_mm, xyzr[data_key][:,3:]), axis=1)
         if self.set_all_r_to_1:
-            xyzr_mm[:, -1] = 1
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, -1] = 1
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, 3] = 1
+                xyzr_mm[:, 7] = 1
+                xyzr_mm[:, 11] = 1
+                
         if self.set_all_xyz_to_1:
-            xyzr_mm[:, :-1] = 1
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, :-1] = 1
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, :3] = 1
+                xyzr_mm[:, 4:7] = 1
+                xyzr_mm[:, 8:11] = 1
 
         
         # 按照最后一列进行排序

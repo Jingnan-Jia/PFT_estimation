@@ -243,6 +243,8 @@ class Run:
             mae_accu_ls = [0]
         mae_accu_all = 0
         for data in dataloader:
+            if args.mode == 'infer' and 8365740 not in data['pat_id']:
+                continue
             torch.cuda.empty_cache()  # avoid memory leak
             data_idx += 1
             if epoch_idx < 3:  # only show first 3 epochs' data loading time
@@ -473,7 +475,7 @@ def run(args: Namespace):
     myrun = Run(args)
     modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
     if args.mode == 'infer':
-        for mode in ['valid', 'test']:
+        for mode in ['test']:
             for i in range(1):
                 myrun.step(mode,  0,  save_pred=True, suffix=str(i))
     else:  # 'train' or 'continue_train'

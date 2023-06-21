@@ -4,9 +4,8 @@ from pointnet2_utils import PointNetSetAbstraction
 import torch
 
 class get_model(nn.Module):
-    def __init__(self, num_class, npoint_base=512, radius_base=40, nsample_base=64):
+    def __init__(self, num_class,in_channel, npoint_base=512, radius_base=40, nsample_base=64):
         super(get_model, self).__init__()
-        in_channel = 4
 
         self.sa1 = PointNetSetAbstraction(npoint=npoint_base, radius=radius_base, nsample=nsample_base, in_channel= in_channel, mlp=[64, 64, 128], group_all=False)
         self.sa2 = PointNetSetAbstraction(npoint=npoint_base // 2, radius=radius_base * 2, nsample=nsample_base * 2, in_channel=128 + 3, mlp=[128, 128, 256], group_all=False)
@@ -23,7 +22,7 @@ class get_model(nn.Module):
     def forward(self, xyzr):
         B, _, _ = xyzr.shape  # Batch, 3+1, N
 
-        l1_xyz, l1_points = self.sa1(xyzr[:,:3,:], xyzr[:,3:4,:])
+        l1_xyz, l1_points = self.sa1(xyzr[:,:3,:], xyzr[:,3:,:])
         l2_xyz, l2_points = self.sa2(l1_xyz, l1_points)
         l3_xyz, l3_points = self.sa3(l2_xyz, l2_points)
         l4_xyz, l4_points = self.sa4(l3_xyz, l3_points)
@@ -37,8 +36,8 @@ class get_model(nn.Module):
 
 if __name__ == '__main__':
 
-    data = torch.rand(2, 4, 1024 )
+    data = torch.rand(2, 6, 1024 )
     print("===> testing pointMLP ...")
-    model = get_model(num_class=5)
+    model = get_model(num_class=5, in_channel=6)
     out = model(data)
     print(out.shape)
