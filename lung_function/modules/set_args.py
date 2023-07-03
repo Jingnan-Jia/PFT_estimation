@@ -110,6 +110,7 @@ def get_args(jupyter=False):
                         type=str, default='videos')
     parser.add_argument('--pretrained_pcd', help='pretrained from pervioius pcd experiments', choices=('vessel_skeleton_pcd'),
                         type=str, default='vessel_skeleton_pcd')
+    parser.add_argument('--freeze_encoder', help='freeze encoder', type=boolean_string, default=True)
     
     
     

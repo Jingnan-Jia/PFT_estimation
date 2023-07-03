@@ -114,6 +114,11 @@ class Run:
         self.pointnet_fc_ls = [int(i) for i in args.pointnet_fc_ls.split('-')]
 
         self.net = get_net_3d(name=args.net, nb_cls=len(self.target), args=args)  # receive ct and pcd as input
+        if args.freeze_encoder:
+            for name, para in self.net.named_parameters():
+                if 'ct_net_extractor' in name or 'pcd_net_extractor' in name:
+                    para.requires_grad = False
+            
         self.fold = args.fold
         self.flops_done = False
 
