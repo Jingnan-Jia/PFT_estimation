@@ -6,6 +6,7 @@
 from lung_function.modules.networks.cnn_fc3d import Cnn3fc1, Cnn3fc2, Cnn4fc2, Cnn5fc2, Cnn6fc2, Vgg11_3d, Vgg16_3d, Vgg19_3d
 from lung_function.modules.networks.cnn_fc3d_enc import Cnn3fc1Enc, Cnn3fc2Enc, Cnn4fc2Enc, Cnn5fc2Enc, Cnn6fc2Enc, Vgg11_3dEnc
 from lung_function.modules.networks.vit3 import ViT3
+from lung_function.modules.networks.combined_net import CombinedNet
 from torch import nn
 import torch
 import torchvision
@@ -15,10 +16,10 @@ sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/mo
 # from openpoints.models import build_model_from_cfg
 # from openpoints.utils import EasyConfig
 from mlflow import log_params
-from lung_function.modules.ulip.models import ULIP_models 
-from lung_function.modules.ulip.models.pointmlp.pointMLP import pointMLP
-from lung_function.modules.ulip.models.pointnet2.pointnet2 import Pointnet2_Ssg
-from lung_function.modules.ulip.models.pointbert.point_encoder import PointTransformer
+# from lung_function.modules.ulip.models import ULIP_models 
+# from lung_function.modules.ulip.models.pointmlp.pointMLP import pointMLP
+# from lung_function.modules.ulip.models.pointnet2.pointnet2 import Pointnet2_Ssg
+# from lung_function.modules.ulip.models.pointbert.point_encoder import PointTransformer
 # from lung_function.modules.ulip.models.pointnext.pointnext import PointNEXT
 import torch.nn.functional as F
 
@@ -82,7 +83,10 @@ def get_net_3d(name: str,
             
         # net = getattr(ULIP_models, args.net)(args=args)
         # args.model: 'ULIP_PN_SSG', 'ULIP_PN_NEXT', 'ULIP_PN_MLP', 'ULIP_PointBERT'
-    if name == 'mlp_reg':
+    if '-' in args.net: # two networks
+        net = CombinedNet(args)
+
+    elif name == 'mlp_reg':
         net = MLP_reg(num_classes=nb_cls, fc_ls=[args.PNB, 512, 256])
     elif name == 'pointmlp_reg':
         from pointmlp_reg import pointMLP

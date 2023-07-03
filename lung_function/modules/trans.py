@@ -192,7 +192,7 @@ class LoadPointCloud(MapTransform):
         fpath = data['fpath']
         # print(f"loading {fpath}")
         xyzr = pd.read_pickle(fpath)
-        if self.in_channel>3:
+        if self.in_channel>4:
             data_key = 'data_wt_neighbors'
         else:
             data_key  = 'data'

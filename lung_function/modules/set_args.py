@@ -20,7 +20,7 @@ def get_args(jupyter=False):
     parser.add_argument('--net', choices=('vgg11_3d', 'vit3', 'vgg16_3d', 'vgg19_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2',
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
-                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg'),  # 'r2plus1d_18' out of memory
+                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg', 'x3d_m-pointnet2_reg'),  # 'r2plus1d_18' out of memory
                         help='network name', type=str, default='pointnet2_reg') 
     
     # Point cloud network configuration
@@ -48,7 +48,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=5)
+                        type=int, default=1)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -60,8 +60,8 @@ def get_args(jupyter=False):
         'ct_right','ct_left_in_lung', 'ct_right_in_lung','ct_upper','ct_lower', 'ct_front', 'ct_back','ct_upper_in_lung',
         'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel',  
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
-        'IntrA_cls_pcd', 'modelnet40_pcd', 'lung_mask_pcd', 'vessel_skeleton_pcd'),
-        type=str, default='vessel_skeleton_pcd')
+        'IntrA_cls_pcd', 'modelnet40_pcd', 'lung_mask_pcd', 'vessel_skeleton_pcd', 'ct-vessel_skeleton_pcd', 'ct-lung_mask_pcd'),
+        type=str, default='ct-vessel_skeleton_pcd')
     parser.add_argument('--target', help='target prediction', type=str,
                         default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
@@ -84,9 +84,9 @@ def get_args(jupyter=False):
     # parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct', 'lung_mask_pcd'), type=str, default='lung_mask_pcd')
     parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='False')
     parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
-    parser.add_argument('--in_channel', help='add_neighbors information', type=int, default=12)
+    parser.add_argument('--in_channel', help='add_neighbors information', type=int, default=4)
 
-    parser.add_argument('--scale_range', help='scale range', type=str, default='0.5-1.5')
+    parser.add_argument('--scale_range', help='scale range', type=str, default='0')  # 0.5-1.5
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
     parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
     parser.add_argument('--FPS_input', help='Fartest point sample input', type=boolean_string, default='False')
@@ -98,12 +98,21 @@ def get_args(jupyter=False):
 
     # training parameters
     parser.add_argument('--mode', choices=('train', 'infer',
-                        'continue_train'), help='mode', type=str, default='train')
+                        'train'), help='mode', type=str, default='train')
     parser.add_argument('--pretrained_id', help='id used for inference, or continue_train',
                         type=str, default="0")  # 3216-3217-3218-2120 SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961 3020-3021-3022-3023
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
-                        type=boolean_string, default='False')
+                        type=boolean_string, default='True')
+    
+    # for combined net
+    parser.add_argument('--pretrained_ct', help='pretrained from pervioius CT or videos', choices=('ct', 'videos'),
+                        type=str, default='videos')
+    parser.add_argument('--pretrained_pcd', help='pretrained from pervioius pcd experiments', choices=('vessel_skeleton_pcd'),
+                        type=str, default='vessel_skeleton_pcd')
+    
+    
+    
     parser.add_argument('--total_folds', choices=(1, 4, 5),
                         help='4-fold training', type=int, default=4)
     parser.add_argument('--fold', choices=(1, 2, 3, 4),

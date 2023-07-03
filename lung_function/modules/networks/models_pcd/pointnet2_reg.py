@@ -3,9 +3,31 @@ import torch.nn.functional as F
 from pointnet2_utils import PointNetSetAbstraction
 import torch
 
+class PointNet2_reg_extractor(nn.Module):
+    def __init__(self, in_channel, npoint_base=512, radius_base=40, nsample_base=64):
+        super().__init__()
+
+        self.sa1 = PointNetSetAbstraction(npoint=npoint_base, radius=radius_base, nsample=nsample_base, in_channel= in_channel, mlp=[64, 64, 128], group_all=False)
+        self.sa2 = PointNetSetAbstraction(npoint=npoint_base // 2, radius=radius_base * 2, nsample=nsample_base * 2, in_channel=128 + 3, mlp=[128, 128, 256], group_all=False)
+        self.sa3 = PointNetSetAbstraction(npoint=npoint_base // 4, radius=radius_base * 4, nsample=nsample_base * 4, in_channel=256 + 3, mlp=[256, 256, 512], group_all=False)
+        self.sa4 = PointNetSetAbstraction(npoint=None, radius=None, nsample=None, in_channel=512 + 3, mlp=[512, 512, 1024], group_all=True)
+        
+
+    def forward(self, xyzr):
+        B, _, _ = xyzr.shape  # Batch, 3+1, N
+
+        l1_xyz, l1_points = self.sa1(xyzr[:,:3,:], xyzr[:,3:,:])
+        l2_xyz, l2_points = self.sa2(l1_xyz, l1_points)
+        l3_xyz, l3_points = self.sa3(l2_xyz, l2_points)
+        l4_xyz, l4_points = self.sa4(l3_xyz, l3_points)
+
+        x = l4_points.view(B, 1024)
+        
+        return x
+
 class get_model(nn.Module):
     def __init__(self, num_class,in_channel, npoint_base=512, radius_base=40, nsample_base=64):
-        super(get_model, self).__init__()
+        super().__init__()
 
         self.sa1 = PointNetSetAbstraction(npoint=npoint_base, radius=radius_base, nsample=nsample_base, in_channel= in_channel, mlp=[64, 64, 128], group_all=False)
         self.sa2 = PointNetSetAbstraction(npoint=npoint_base // 2, radius=radius_base * 2, nsample=nsample_base * 2, in_channel=128 + 3, mlp=[128, 128, 256], group_all=False)

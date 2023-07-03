@@ -253,6 +253,7 @@ def pat_from_json(data, fold=1) -> np.ndarray:
     return train, valid, test
 
 
+
 def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'test'), nb=None, top_pats=None):
     if args.input_mode == 'modelnet40_pcd':
         data_dt = {}
@@ -362,10 +363,11 @@ def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'tes
         # vdxformd = xformd('valid')
         # tsxformd = xformd('test')
         if args.balanced_sampler and 'train' in datasetmode:
-            sampler = sampler_by_disext(tr_data, ref = 'DLCOc_SB')  # only for training dataset
+            sampler = None
+            # sampler = sampler_by_disext(tr_data, ref = 'DLCOc_SB')  # only for training dataset
             shuffle = False
         else:
-            shuffle = True
+            shuffle = False
             sampler = None
 
 
