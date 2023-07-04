@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=gpu-long
+#SBATCH --partition=amd-gpu-long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=12
 ##SBATCH -t 7-00:00:00
@@ -71,7 +71,7 @@ conda activate py38
 
 # shellcheck disable=SC2046
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --remark="balanced sampler, lr=0.001"
-idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --freeze_encoder='True' --pretrained_ct=0 --pretrained_pcd=0 --remark="combined_run, pretrained=false, freeze_encoder=True "
+idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --freeze_encoder='True' --pretrained_ct='ct' --remark="combined_run, pretrained_ct=True, freeze_encoder=True "
 # idx=1; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='x3d_m' --pretrained_imgnet=True --batch_size=1 --input_mode="ct_masked_by_lung" --epochs=100 --target='TLC_He' --remark="1 outputs, from pretraining" &
 # wait
 
