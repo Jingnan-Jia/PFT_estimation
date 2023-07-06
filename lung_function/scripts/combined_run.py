@@ -291,7 +291,7 @@ class Run:
                     head = ['pat_id']
                     head.extend(self.target)
 
-                    batch_pat_id = data['pat_id'].cpu(
+                    batch_pat_id = data_ct['pat_id'].cpu(
                     ).detach().numpy()  # shape (N,1)
                     batch_pat_id = int2str(batch_pat_id)  # shape (N,1)
 
