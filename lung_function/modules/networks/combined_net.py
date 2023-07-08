@@ -87,7 +87,7 @@ class CombinedNet(nn.Module):
         
         
 
-    def forward(self, ct, pcd):  # x shape: (B,N)
+    def forward(self, ct, pcd, out_features=False):  # x shape: (B,N)
         B = ct.shape[0]  # Batch, 3+1, N
 
         ct_features = self.ct_net_extractor(ct).flatten()
@@ -100,4 +100,4 @@ class CombinedNet(nn.Module):
         out = self.fc3(x)
 
 
-        return out
+        return out, ct_features, pcd_features

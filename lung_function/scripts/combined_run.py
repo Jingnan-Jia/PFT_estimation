@@ -148,12 +148,12 @@ class Run:
             args.input_mode = ori_input_mode.split('-')[0]
             args.ct_sp = '1.5'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=10)
             
             args.input_mode = ori_input_mode.split('-')[1]
             args.ct_sp = 'ori'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=10)
             args.input_mode = ori_input_mode
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
@@ -191,7 +191,17 @@ class Run:
         else:
             mae_accu_ls = [0]
         mae_accu_all = 0
-        for data_ct, data_pcd in zip(dataloader_ct, dataloader_pcd):
+        data_iter_ct = iter(dataloader_ct)
+        data_iter_pcd = iter(dataloader_pcd)
+        for i in range(len(dataloader_ct)):
+            ttt = time.time()
+            data_ct = next(data_iter_ct)
+            ttt2 = time.time()
+            print(f'get a ct in {ttt2-ttt}')
+            data_pcd = next(data_iter_pcd)
+            print(f'get a pcd in {time.time() - ttt2}')
+        # for data_ct, data_pcd in zip(dataloader_ct, dataloader_pcd):
+            assert all(data_ct['pat_id'] == data_pcd['pat_id'])
             
             
             # if args.mode == 'infer' and 8365740 not in data['pat_id']:
@@ -280,13 +290,30 @@ class Run:
             
 
 
-
+            out_features = True
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference
                     with torch.no_grad():
-                        pred = self.net(*batch_x)
+                        pred, ct_features, pcd_features = self.net(*batch_x, out_features=out_features)
                 else:
-                    pred = self.net(*batch_x)
+                    pred, ct_features, pcd_features = self.net(*batch_x, out_features=out_features)
+                
+                # save features to disk for the future analysis or re-training
+                ct_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_ct_feature.csv')
+                pcd_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_pcd_feature.csv')
+                
+                batch_pat_id = data_ct['pat_id'].cpu().detach().numpy()
+                batch_labels = batch_y.cpu().detach().numpy()
+                ct_features = ct_features.clone().cpu().numpy()
+                pcd_features= pcd_features.clone().cpu().numpy()
+                ct_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *ct_features])
+                pcd_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *pcd_features])
+                head_ct = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(ct_features))]])
+                head_pcd = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(pcd_features))]])
+                medutils.appendrows_to(ct_features_fpath, ct_features_saved, head=head_ct)
+                medutils.appendrows_to(pcd_features_fpath, pcd_features_saved, head=head_pcd)
+                
+                save_pred = 0
                 if save_pred:
                     head = ['pat_id']
                     head.extend(self.target)
@@ -333,11 +360,12 @@ class Run:
 
                     
 
-            if mode == 'train' and save_pred is not True:  # update gradients only when training
-                self.opt.zero_grad()
-                scaler.scale(loss).backward()
-                scaler.step(self.opt)
-                scaler.update()
+            # if mode == 'train' and save_pred is not True:  # update gradients only when training
+            #     self.opt.zero_grad()
+            #     scaler.scale(loss).backward()
+            #     scaler.step(self.opt)
+            #     scaler.update()
+                
             loss_cpu = loss.item()
             print('loss:', loss_cpu)
             # log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader))
@@ -393,9 +421,13 @@ def run(args: Namespace):
     myrun = Run(args)
     modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
     if args.mode == 'infer':
-        for mode in ['test']:
-            for i in range(1):
-                myrun.step(mode,  0,  save_pred=True, suffix=str(i))
+        for mode in ['valid', 'test', 'train']:
+            if mode=='train':
+                steps = 100
+            else:
+                steps = 1
+            for i in range(steps):
+                myrun.step(mode,  0,  save_pred=True)
     else:  # 'train' or 'continue_train'
         for i in range(args.epochs):  # 20000 epochs
             myrun.step('train', i)
@@ -426,14 +458,14 @@ def run(args: Namespace):
     label_ls = [mypath.save_label_fpath(mode) for mode in modes]
     pred_ls = [mypath.save_pred_fpath(mode) for mode in modes]
 
-    for pred_fpath, label_fpath in zip(pred_ls, label_ls):
-        r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-        log_params(r_p_value)
-        print('r_p_value:', r_p_value)
+    # for pred_fpath, label_fpath in zip(pred_ls, label_ls):
+    #     r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+    #     log_params(r_p_value)
+    #     print('r_p_value:', r_p_value)
 
-        icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-        log_params(icc_value)
-        print('icc:', icc_value)
+    #     icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+    #     log_params(icc_value)
+    #     print('icc:', icc_value)
 
     print('Finish all things!')
 

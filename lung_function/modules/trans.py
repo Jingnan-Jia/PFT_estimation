@@ -190,7 +190,7 @@ class LoadPointCloud(MapTransform):
 
     def __call__(self, data: TransInOut) -> TransInOut:
         fpath = data['fpath']
-        # print(f"loading {fpath}")
+        print(f"loading {fpath}")
         xyzr = pd.read_pickle(fpath)
         if self.in_channel>4:
             data_key = 'data_wt_neighbors'
