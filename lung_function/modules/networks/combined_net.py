@@ -7,6 +7,8 @@ import os
 from lung_function.modules.networks.x3d import create_x3d_extractor
 
 
+
+    
 class CombinedNet(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -101,3 +103,4 @@ class CombinedNet(nn.Module):
 
 
         return out, ct_features, pcd_features
+    

@@ -20,8 +20,8 @@ def get_args(jupyter=False):
     parser.add_argument('--net', choices=('vgg11_3d', 'vit3', 'vgg16_3d', 'vgg19_3d', 'r3d_resnet', 'cnn3fc1', 'cnn4fc2',
                                           'cnn5fc2', 'cnn6fc2', 'cnn2fc1', 'cnn3fc2', 'r3d_18', 'slow_r50',
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
-                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg', 'x3d_m-pointnet2_reg'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='pointnet2_reg') 
+                                          'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg', 'x3d_m-pointnet2_reg', 'fcnet_1216'),  # 'r2plus1d_18' out of memory
+                        help='network name', type=str, default='fcnet_1216') 
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -48,7 +48,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=1)
+                        type=int, default=100)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -98,7 +98,7 @@ def get_args(jupyter=False):
 
     # training parameters
     parser.add_argument('--mode', choices=('continue_train', 'infer',
-                        'train'), help='mode', type=str, default='infer')
+                        'train'), help='mode', type=str, default='train')
     parser.add_argument('--pretrained_id', help='id used for inference, or continue_train',
                         type=str, default="0")  # 3216-3217-3218-2120 SSc-852-853-854-855, 1504-1505-1510-1515, 2371-2375-2379-23， 2958-2959-2960-2961 3020-3021-3022-3023
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
@@ -124,7 +124,7 @@ def get_args(jupyter=False):
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=1)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=10)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
