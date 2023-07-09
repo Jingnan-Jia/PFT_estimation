@@ -38,6 +38,7 @@ from lung_function.modules.path import PFTPath
 import os
 
 from monai.data import DataLoader
+from sklearn.preprocessing import StandardScaler
 
 
 from lung_function.modules import provider
@@ -138,7 +139,7 @@ def int2str(batch_id: np.ndarray) -> np.ndarray:
     return np.array(id_str_ls)
 
 class FeatureDataset(torch.utils.data.Dataset):
-    def __init__(self, fpath_ct, fpath_pcd):
+    def __init__(self, fpath_ct, fpath_pcd, in_chn):
         self.device = torch.device("cuda")  # 'cuda'
         data_ct = pd.read_csv(fpath_ct)
         data_pcd = pd.read_csv(fpath_pcd)
@@ -147,7 +148,15 @@ class FeatureDataset(torch.utils.data.Dataset):
         assert (data_ct.iloc[:, 1:5]==data_pcd.iloc[:, 1:5]).all().all()
         assert len(data_ct) == len(data_pcd)
         
-        self.data = pd.concat([data_ct, data_pcd.iloc[:, 5:]], axis=1).astype('float32')
+        if in_chn == 192:  # ct
+            self.data = data_ct.astype('float32')
+        elif in_chn == 1024:  # pcd
+            self.data = data_pcd.astype('float32')
+        else:
+            scaler = StandardScaler()
+            data_ct_norm = pd.DataFrame(scaler.fit_transform(data_ct), columns=data_ct.columns)
+            data_pcd_norm = pd.DataFrame(scaler.fit_transform(data_pcd), columns=data_pcd.columns)
+            self.data = pd.concat([data_ct_norm, data_pcd_norm.iloc[:, 5:]], axis=1).astype('float32')
 
         
         
@@ -207,7 +216,7 @@ class Run:
         validMAEEpoch_AllBest = 1000
         
         ex_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments'
-        data_id = [3387, 3391, 3392, 3393]
+        data_id = [3387, 3391, 3392, 3439]
         
         self.dataloader = {}
         for mode in ['train', 'valid', 'test']:
@@ -215,7 +224,7 @@ class Run:
             ct_path = f"{ex_dir}/{data_id[self.fold]}/{mode}_pred_ct_feature.csv" 
             pcd_path = f"{ex_dir}/{data_id[self.fold]}/{mode}_pred_pcd_feature.csv" 
 
-            data = FeatureDataset(ct_path, pcd_path)
+            data = FeatureDataset(ct_path, pcd_path, in_chn)
             self.dataloader[mode] = DataLoader(data, batch_size=args.batch_size, shuffle=shuffle)
         
 
@@ -246,9 +255,9 @@ class Run:
         loss_accu = 0
         mae_accu_ls = [0 for _ in self.target]
         mae_accu_all = 0
-
+        len_data = len(self.dataloader[mode])
         for fea, lab, patid in self.dataloader[mode]:
-            len_data = len(patid)
+            
 
             torch.cuda.empty_cache()  # avoid memory leak
             data_idx += 1
