@@ -221,8 +221,8 @@ class Run:
         self.dataloader = {}
         for mode in ['train', 'valid', 'test']:
             shuffle = True if mode=='train' else False
-            ct_path = f"{ex_dir}/{data_id[self.fold]}/{mode}_pred_ct_feature.csv" 
-            pcd_path = f"{ex_dir}/{data_id[self.fold]}/{mode}_pred_pcd_feature.csv" 
+            ct_path = f"{ex_dir}/{data_id[self.fold-1]}/{mode}_pred_ct_feature.csv" 
+            pcd_path = f"{ex_dir}/{data_id[self.fold-1]}/{mode}_pred_pcd_feature.csv" 
 
             data = FeatureDataset(ct_path, pcd_path, in_chn)
             self.dataloader[mode] = DataLoader(data, batch_size=args.batch_size, shuffle=shuffle)
