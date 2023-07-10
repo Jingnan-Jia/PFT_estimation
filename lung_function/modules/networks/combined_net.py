@@ -86,15 +86,21 @@ class CombinedNet(nn.Module):
         self.bn2 = nn.InstanceNorm1d(256)
         self.drop2 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(256, num_class)
-        
+        self.norm192 = nn.InstanceNorm1d(192) 
+        self.norm1024 = nn.InstanceNorm1d(1024) 
+
         
 
     def forward(self, ct, pcd, out_features=False):  # x shape: (B,N)
         B = ct.shape[0]  # Batch, 3+1, N
 
-        ct_features = self.ct_net_extractor(ct).flatten()
-        pcd_features = self.pcd_net_extractor(pcd).flatten()
-        all_features = torch.concatenate((ct_features, pcd_features))
+        ct_features = self.ct_net_extractor(ct).reshape(B, 1, -1)
+        ct_features_norm = self.norm192(ct_features)
+        
+        pcd_features = self.pcd_net_extractor(pcd).reshape(B, 1, -1)
+        pcd_features_norm = self.norm1024(pcd_features)
+
+        all_features = torch.concatenate((ct_features_norm, pcd_features_norm), axis=2)
         
         x = all_features.view(B, self.nb_feature)
         x = self.drop1(F.relu(self.bn1(self.fc1(x))))

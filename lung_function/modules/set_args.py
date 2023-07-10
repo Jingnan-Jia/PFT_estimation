@@ -22,7 +22,7 @@ def get_args(jupyter=False):
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
                                           'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg', 'x3d_m-pointnet2_reg', 
                                           'fcnet_192', 'fcnet_1024','fcnet_1216'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='fcnet_1216') 
+                        help='network name', type=str, default='x3d_m-pointnet2_reg') 
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -49,7 +49,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=100)
+                        type=int, default=1)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -125,7 +125,7 @@ def get_args(jupyter=False):
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=10)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=100)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
