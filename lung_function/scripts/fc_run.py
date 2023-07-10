@@ -148,12 +148,13 @@ class FeatureDataset(torch.utils.data.Dataset):
         assert (data_ct.iloc[:, 1:5]==data_pcd.iloc[:, 1:5]).all().all()
         assert len(data_ct) == len(data_pcd)
         
+        scaler = StandardScaler()
         if in_chn == 192:  # ct
-            self.data = data_ct.astype('float32')
+            self.data = pd.DataFrame(scaler.fit_transform(data_ct), columns=data_ct.columns).astype('float32')
+
         elif in_chn == 1024:  # pcd
-            self.data = data_pcd.astype('float32')
-        else:
-            scaler = StandardScaler()
+            self.data = pd.DataFrame(scaler.fit_transform(data_pcd), columns=data_pcd.columns).astype('float32')
+        else:            
             data_ct_norm = pd.DataFrame(scaler.fit_transform(data_ct), columns=data_ct.columns)
             data_pcd_norm = pd.DataFrame(scaler.fit_transform(data_pcd), columns=data_pcd.columns)
             self.data = pd.concat([data_ct_norm, data_pcd_norm.iloc[:, 5:]], axis=1).astype('float32')
