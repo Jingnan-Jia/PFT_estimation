@@ -298,22 +298,21 @@ class Run:
                 else:
                     pred, ct_features, pcd_features = self.net(*batch_x, out_features=out_features)
                 
-                # save features to disk for the future analysis or re-training
-                ct_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_ct_feature.csv')
-                pcd_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_pcd_feature.csv')
+                # # save features to disk for the future analysis or re-training
+                # ct_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_ct_feature.csv')
+                # pcd_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_pcd_feature.csv')
                 
-                batch_pat_id = data_ct['pat_id'].cpu().detach().numpy()
-                batch_labels = batch_y.cpu().detach().numpy()
-                ct_features = ct_features.clone().cpu().numpy()
-                pcd_features= pcd_features.clone().cpu().numpy()
-                ct_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *ct_features])
-                pcd_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *pcd_features])
-                head_ct = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(ct_features))]])
-                head_pcd = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(pcd_features))]])
-                medutils.appendrows_to(ct_features_fpath, ct_features_saved, head=head_ct)
-                medutils.appendrows_to(pcd_features_fpath, pcd_features_saved, head=head_pcd)
+                # batch_pat_id = data_ct['pat_id'].cpu().detach().numpy()
+                # batch_labels = batch_y.cpu().detach().numpy()
+                # ct_features = ct_features.clone().cpu().numpy()
+                # pcd_features= pcd_features.clone().cpu().numpy()
+                # ct_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *ct_features])
+                # pcd_features_saved = np.array([batch_pat_id.flatten()[0],*batch_labels.flatten()[:], *pcd_features])
+                # head_ct = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(ct_features))]])
+                # head_pcd = np.array(['pat_id', 'DLCOc', 'FEV1', 'FVC', 'TLC', *[i for i in range(len(pcd_features))]])
+                # medutils.appendrows_to(ct_features_fpath, ct_features_saved, head=head_ct)
+                # medutils.appendrows_to(pcd_features_fpath, pcd_features_saved, head=head_pcd)
                 
-                save_pred = 0
                 if save_pred:
                     head = ['pat_id']
                     head.extend(self.target)
@@ -360,17 +359,17 @@ class Run:
 
                     
 
-            # if mode == 'train' and save_pred is not True:  # update gradients only when training
-            #     self.opt.zero_grad()
-            #     scaler.scale(loss).backward()
-            #     scaler.step(self.opt)
-            #     scaler.update()
+            if mode == 'train' and save_pred is not True:  # update gradients only when training
+                self.opt.zero_grad()
+                scaler.scale(loss).backward()
+                scaler.step(self.opt)
+                scaler.update()
                 
             loss_cpu = loss.item()
             print('loss:', loss_cpu)
-            # log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader))
-            # log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader))
-            # [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader)) for t, m in zip(self.target, mae_ls)]
+            log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader_ct))
+            log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader_ct))
+            [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader_ct)) for t, m in zip(self.target, mae_ls)]
 
             loss_accu += loss_cpu
             for i, mae in enumerate(mae_ls):
@@ -458,14 +457,14 @@ def run(args: Namespace):
     label_ls = [mypath.save_label_fpath(mode) for mode in modes]
     pred_ls = [mypath.save_pred_fpath(mode) for mode in modes]
 
-    # for pred_fpath, label_fpath in zip(pred_ls, label_ls):
-    #     r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-    #     log_params(r_p_value)
-    #     print('r_p_value:', r_p_value)
+    for pred_fpath, label_fpath in zip(pred_ls, label_ls):
+        r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+        log_params(r_p_value)
+        print('r_p_value:', r_p_value)
 
-    #     icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-    #     log_params(icc_value)
-    #     print('icc:', icc_value)
+        icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+        log_params(icc_value)
+        print('icc:', icc_value)
 
     print('Finish all things!')
 
