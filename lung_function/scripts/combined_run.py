@@ -291,13 +291,15 @@ class Run:
 
 
             out_features = True
+            tt0 = time.time()
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference
                     with torch.no_grad():
                         pred, ct_features, pcd_features = self.net(*batch_x, out_features=out_features)
                 else:
                     pred, ct_features, pcd_features = self.net(*batch_x, out_features=out_features)
-                
+                tt1 = time.time()
+                print(f'time forward: , {tt1-tt0: .2f}')
                 # # save features to disk for the future analysis or re-training
                 # ct_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_ct_feature.csv')
                 # pcd_features_fpath = self.mypath.save_pred_fpath(mode).replace('.csv', '_pcd_feature.csv')
@@ -364,7 +366,8 @@ class Run:
                 scaler.scale(loss).backward()
                 scaler.step(self.opt)
                 scaler.update()
-                
+            tt2 = time.time()
+            print(f'time backward: , {tt2-tt1: .2f}')
             loss_cpu = loss.item()
             print('loss:', loss_cpu)
             # log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader_ct))
