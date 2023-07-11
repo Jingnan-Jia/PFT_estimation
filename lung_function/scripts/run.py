@@ -39,7 +39,7 @@ from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
 from lung_function.modules.trans import batch_bbox2_3D
 import sys
-# sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/models_pcd")
+sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/models_pcd")
 sys.path.append("/home/jjia/data/lung_function/lung_function/modules")
 
 args = get_args()
