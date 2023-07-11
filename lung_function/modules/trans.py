@@ -176,7 +176,7 @@ class SampleShuffled(MapTransform, RandomizableTransform):
         return data
 
 class LoadPointCloud(MapTransform):
-    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False, in_channel=False):
+    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False, in_channel=False, scale_r=100):
         super().__init__(keys, allow_missing_keys=True,)
         self.target = [i.lstrip() for i in target.split('-')]
         self.position_center_norm = position_center_norm
@@ -186,6 +186,7 @@ class LoadPointCloud(MapTransform):
         self.set_all_r_to_1 = set_all_r_to_1
         self.set_all_xyz_to_1 = set_all_xyz_to_1
         self.in_channel = in_channel
+        self.scale_r = scale_r
 
 
     def __call__(self, data: TransInOut) -> TransInOut:
@@ -227,6 +228,13 @@ class LoadPointCloud(MapTransform):
                 xyzr_mm[:, :3] = 1
                 xyzr_mm[:, 4:7] = 1
                 xyzr_mm[:, 8:11] = 1
+        if self.scale_r:
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, -1] *= self.scale_r
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, 3] *= self.scale_r
+                xyzr_mm[:, 7] *= self.scale_r
+                xyzr_mm[:, 11] *= self.scale_r
 
         
         # 按照最后一列进行排序

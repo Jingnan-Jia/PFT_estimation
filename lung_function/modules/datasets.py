@@ -101,7 +101,7 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
         
         xforms = [LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
         repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1, 
-        set_all_xyz_to_1=args.set_all_xyz_to_1, in_channel=args.in_channel),
+        set_all_xyz_to_1=args.set_all_xyz_to_1, in_channel=args.in_channel, scale_r=args.scale_r),
                   SampleShuffled(
                       keys=keys, PNB=PNB, repeated_sample=args.repeated_sample),
                   # ShiftCoordinated(keys=keys, position_center_norm=args.position_center_norm),

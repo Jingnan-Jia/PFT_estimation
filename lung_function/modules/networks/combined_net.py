@@ -86,6 +86,7 @@ class CombinedNet(nn.Module):
         self.bn2 = nn.InstanceNorm1d(256)
         self.drop2 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(256, num_class)
+        
         self.norm192 = nn.InstanceNorm1d(192) 
         self.norm1024 = nn.InstanceNorm1d(1024) 
 

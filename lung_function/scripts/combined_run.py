@@ -367,9 +367,9 @@ class Run:
                 
             loss_cpu = loss.item()
             print('loss:', loss_cpu)
-            log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader_ct))
-            log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader_ct))
-            [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader_ct)) for t, m in zip(self.target, mae_ls)]
+            # log_metric(mode+'LossBatch', loss_cpu, data_idx+epoch_idx*len(dataloader_ct))
+            # log_metric(mode+'MAEBatch_All', mae_all, data_idx+epoch_idx*len(dataloader_ct))
+            # [log_metric(mode+'MAEBatch_'+t, m, data_idx+epoch_idx*len(dataloader_ct)) for t, m in zip(self.target, mae_ls)]
 
             loss_accu += loss_cpu
             for i, mae in enumerate(mae_ls):
