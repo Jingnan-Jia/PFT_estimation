@@ -18,6 +18,8 @@ class CombinedNet(nn.Module):
         
         if args.combined_by_add:
             self.nb_feature = nb_feature_ct
+            self.fc192 = nn.Linear(nb_feature_pcd, nb_feature_ct)
+            self.bn192 = nn.InstanceNorm1d(192) 
         else:
             self.nb_feature = nb_feature_ct + nb_feature_pcd
         
@@ -94,7 +96,7 @@ class CombinedNet(nn.Module):
         self.norm192 = nn.InstanceNorm1d(192) 
         self.norm1024 = nn.InstanceNorm1d(1024) 
         
-        self.fc192 = nn.Linear(1024, 192)
+        
 
         
 
@@ -108,7 +110,7 @@ class CombinedNet(nn.Module):
         pcd_features_norm = self.norm1024(pcd_features)
 
         if self.nb_feature == 1216:  # concatenation
-            pcd_features_to_192 = self.fc192(pcd_features)
+            pcd_features_to_192 = self.bn192(self.fc192(pcd_features))
             all_features = pcd_features_to_192 + ct_features_norm
         else:
             all_features = torch.concatenate((ct_features_norm, pcd_features_norm), axis=2)
