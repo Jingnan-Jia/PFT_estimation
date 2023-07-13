@@ -109,8 +109,8 @@ class CombinedNet(nn.Module):
         pcd_features = self.pcd_net_extractor(pcd).reshape(B, 1, -1)
         pcd_features_norm = self.norm1024(pcd_features)
 
-        if self.nb_feature == 1216:  # concatenation
-            pcd_features_to_192 = self.bn192(self.fc192(pcd_features))
+        if self.nb_feature == 192:  # concatenation
+            pcd_features_to_192 = self.bn192(self.fc192(pcd_features_norm))
             all_features = pcd_features_to_192 + ct_features_norm
         else:
             all_features = torch.concatenate((ct_features_norm, pcd_features_norm), axis=2)

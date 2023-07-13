@@ -148,12 +148,12 @@ class Run:
             args.input_mode = ori_input_mode.split('-')[0]
             args.ct_sp = '1.5'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=10)
             
             args.input_mode = ori_input_mode.split('-')[1]
             args.ct_sp = 'ori'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=10)
             args.input_mode = ori_input_mode
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
