@@ -114,7 +114,8 @@ def get_args(jupyter=False):
     parser.add_argument('--pretrained_pcd', help='pretrained from pervioius pcd experiments', choices=('vessel_skeleton_pcd'),
                         type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--freeze_encoder', help='freeze encoder', type=boolean_string, default=False)
-    
+    parser.add_argument('--combined_by_add', help='combined_by_add', type=boolean_string, default=True)
+
     
     
     parser.add_argument('--total_folds', choices=(1, 4, 5),
