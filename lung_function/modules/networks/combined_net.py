@@ -18,7 +18,10 @@ class CombinedNet(nn.Module):
         
         if args.combined_by_add:
             self.nb_feature = nb_feature_ct
-            self.fc192 = nn.Linear(nb_feature_pcd, nb_feature_ct)
+            if args.combined_by_pool:
+                self.proj = nn.AdaptiveAvgPool1d(nb_feature_ct)
+            else:
+                self.proj = nn.Linear(nb_feature_pcd, nb_feature_ct)
             self.bn192 = nn.InstanceNorm1d(192) 
             self.bn192_again = nn.InstanceNorm1d(192) 
         else:
@@ -111,7 +114,7 @@ class CombinedNet(nn.Module):
         pcd_features_norm = self.norm1024(pcd_features)
 
         if self.nb_feature == 192:  # concatenation
-            pcd_features_to_192 = self.bn192(self.fc192(pcd_features_norm))
+            pcd_features_to_192 = self.bn192(self.proj(pcd_features_norm))
             all_features = pcd_features_to_192 + ct_features_norm
             all_features = self.bn192_again(all_features)
         else:

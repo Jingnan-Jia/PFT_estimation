@@ -115,6 +115,7 @@ def get_args(jupyter=False):
                         type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--freeze_encoder', help='freeze encoder', type=boolean_string, default=False)
     parser.add_argument('--combined_by_add', help='combined_by_add', type=boolean_string, default=True)
+    parser.add_argument('--combined_by_pool', help='combined_by_add', type=boolean_string, default=True)
 
     
     
