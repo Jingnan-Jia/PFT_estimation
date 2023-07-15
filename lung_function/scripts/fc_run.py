@@ -41,15 +41,11 @@ from monai.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 
 
-from lung_function.modules import provider
 from lung_function.modules.compute_metrics import icc, metrics
-from lung_function.modules.datasets import all_loaders
 from lung_function.modules.loss import get_loss
-from lung_function.modules.networks import get_net_3d
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
-from lung_function.modules.trans import batch_bbox2_3D
 
 args = get_args()
 global_lock = threading.Lock()
