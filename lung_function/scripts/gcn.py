@@ -133,22 +133,6 @@ def int2str(batch_id: np.ndarray) -> np.ndarray:
 
     return np.array(id_str_ls)
 
-class GCNNet(torch.nn.Module):
-    def __init__(self,in_chn=4, out_chn=4):
-        super(GCNNet, self).__init__()
-        self.conv1 = GCNConv(num_of_feat, 64)
-        self.conv2 = GCNConv(64, 2)  
-        # TODO: Adaptive pooling layer here
-        self.classifier = nn.Linear(256, out_chn)
-    def forward(self, data):
-        x = data.x.float()
-        edge_index =  data.edge_index
-        x = self.conv1(x=x, edge_index=edge_index)
-        x = F.relu(x)
-        x = self.conv2(x, edge_index)
-        x = self.classifier(x)
-        return x
-    
 
 
 class FCNet(nn.Module):
@@ -157,10 +141,10 @@ class FCNet(nn.Module):
 
         self.nb_feature = in_chn
 
-        self.fc1 = nn.Linear(self.nb_feature, 512)
-        self.bn1 = nn.InstanceNorm1d(512) 
+        self.fc1 = nn.Linear(self.nb_feature, 1024)
+        self.bn1 = nn.InstanceNorm1d(1024) 
         self.drop1 = nn.Dropout(0.4)
-        self.fc2 = nn.Linear(512, 256)
+        self.fc2 = nn.Linear(1024, 256)
         self.bn2 = nn.InstanceNorm1d(256)
         self.drop2 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(256, out_chn)
@@ -181,7 +165,7 @@ class GCN(torch.nn.Module):
         torch.manual_seed(12345)
         self.conv1 = GCNConv(in_chn, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.conv3 = GCNConv(hidden_channels, hidden_channels)
+        # self.conv3 = GCNConv(hidden_channels, hidden_channels)
         self.classifier = FCNet(hidden_channels, out_chn)
 
     def forward(self, x, edge_index, batch_idx, out_feature=False):
@@ -311,12 +295,9 @@ class Run:
 
                 loss = self.loss_fun(pred, data_batch.y.reshape(pred.shape))
                 with torch.no_grad():
-                    if len(batch_y.shape) == 2 and self.args.loss!='ce':
-                        mae_ls = [loss_fun_mae(pred[:, i], data_batch.y.reshape(pred.shape)[:, i]).item() for i in range(len(self.target))]
-                        mae_all = loss_fun_mae(pred, data_batch.y.reshape(pred.shape)).item()
-                    else:
-                        mae_ls = [loss]
-                        mae_all = loss.item()
+                    mae_ls = [loss_fun_mae(pred[:, i], data_batch.y.reshape(pred.shape)[:, i]).item() for i in range(len(self.target))]
+                    mae_all = loss_fun_mae(pred, data_batch.y.reshape(pred.shape)).item()
+                
 
                     
 
