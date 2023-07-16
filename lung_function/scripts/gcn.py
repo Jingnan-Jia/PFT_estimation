@@ -63,6 +63,8 @@ from lung_function.modules.loss import get_loss
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
+import optuna
+
 
 args = get_args()
 global_lock = threading.Lock()
@@ -136,18 +138,22 @@ def int2str(batch_id: np.ndarray) -> np.ndarray:
 
 
 class FCNet(nn.Module):
-    def __init__(self, in_chn, out_chn):
+    def __init__(self, in_chn, out_chn, args):
         super().__init__()
 
         self.nb_feature = in_chn
+        # fc0, fc1 = 1024, 256
+        fc0 = args.trial.suggest_categorical('fc0', [1024, 512, 256])
+        fc1 = args.trial.suggest_categorical('fc1', [256, 128])
+                
 
-        self.fc1 = nn.Linear(self.nb_feature, 1024)
-        self.bn1 = nn.InstanceNorm1d(1024) 
+        self.fc1 = nn.Linear(self.nb_feature, fc0)
+        self.bn1 = nn.InstanceNorm1d(fc0) 
         self.drop1 = nn.Dropout(0.4)
-        self.fc2 = nn.Linear(1024, 256)
-        self.bn2 = nn.InstanceNorm1d(256)
+        self.fc2 = nn.Linear(fc0, fc1)
+        self.bn2 = nn.InstanceNorm1d(fc1)
         self.drop2 = nn.Dropout(0.4)
-        self.fc3 = nn.Linear(256, out_chn)
+        self.fc3 = nn.Linear(fc1, out_chn)
         
         
 
@@ -163,10 +169,13 @@ class GCN(torch.nn.Module):
     def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
+        hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64])
         self.conv1 = GCNConv(in_chn, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        # self.conv3 = GCNConv(hidden_channels, hidden_channels)
-        self.classifier = FCNet(hidden_channels, out_chn)
+        self.gcv3 = args.trial.suggest_categorical('gcv3', [True, False])
+        if self.gcv3:
+            self.conv3 = GCNConv(hidden_channels, hidden_channels)
+        self.classifier = FCNet(hidden_channels, out_chn, args)
 
     def forward(self, x, edge_index, batch_idx, out_feature=False):
         B = x.shape[0]
@@ -175,7 +184,8 @@ class GCN(torch.nn.Module):
         x = x.relu()
         x = self.conv2(x, edge_index)
         x = x.relu()
-        x = self.conv3(x, edge_index)
+        if self.gcv3:
+            x = self.conv3(x, edge_index)
 
         # 2. Readout layer
         feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
@@ -213,7 +223,7 @@ class Run:
         self.opt = torch.optim.Adam( self.net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         self.net = self.net.to(self.device)
-        self.dataloader = all_loaders(args, nb=1000)
+        self.dataloader = all_loaders(args, nb=10000)
 
         validMAEEpoch_AllBest = 1000
 
@@ -345,6 +355,7 @@ class Run:
                         'metric_name': mode+'MAEEpoch_AllBest',
                         'current_metric_value': self.BestMetricDt[mode+'MAEEpoch_AllBest']}
                 torch.save(ckpt, self.mypath.model_fpath)
+        
 
 
 @dec_record_cgpu(args.outfile)
@@ -386,6 +397,7 @@ def run(args: Namespace):
                     ckpt = {'model': myrun.net.state_dict()}
                     torch.save(ckpt, myrun.mypath.model_fpath)
                 for mode in modes:
+                    
                     myrun.step(mode, i, save_pred=True)
 
     mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
@@ -400,8 +412,9 @@ def run(args: Namespace):
         icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
         log_params(icc_value)
         print('icc:', icc_value)
-
+        
     print('Finish all things!')
+    return myrun.BestMetricDt['validMAEEpoch_AllBest']
 
 
 def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='params'):
@@ -678,12 +691,72 @@ def main():
             mae_dict = mae(pred_fpath, label_fpath, ignore_1st_column=True)
             mae_ensemble = {'ensemble_' + k:v for k, v in mae_dict.items()}
             print(mae_ensemble)
-            log_params(mae_ensemble)    
+            log_params(mae_ensemble)  
+    
+
+
+def main2():
+
+    SEED = 4
+    set_determinism(SEED)  # set seed for this run
+
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+    torch.cuda.manual_seed(SEED)
+
+    random.seed(SEED)
+    np.random.seed(SEED)
+
+    mlflow.set_tracking_uri("http://nodelogin02:5000")
+    experiment = mlflow.set_experiment("lung_fun_gcn")
+    
+    RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
+    # write super parameters from set_args.py to record file.
+    id = record_1st(RECORD_FPATH)
+
+    with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
+        args.id = id  # do not need to pass id seperately to the latter function
+
+        current_id = id
+        tmp_args_dt = vars(args)
+        tmp_args_dt['fold'] = 'all'
+        log_params(tmp_args_dt)
+
+        all_folds_id_ls = []
+
+
+
+
+        def run2(trial):
+            args.trial = trial
+            args.epochs = 50
+            args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
+            
+            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 16, 8])
+            for fold in [1]:
+                # write super parameters from set_args.py to record file.
+
+                id = record_1st(RECORD_FPATH)
+                all_folds_id_ls.append(id)
+                with mlflow.start_run(run_name=str(id) + '_fold_' + str(fold), tags={"mlflow.note.content": f"fold: {fold}"}, nested=True):
+                    args.fold = fold
+                    args.id = id  # do not need to pass id seperately to the latter function
+                    # args.mode = 'infer'  # disable it for normal training
+                    tmp_args_dt = vars(args)
+                    log_params(tmp_args_dt)
+                    loss = run(args)
+            return loss
+                    
+        study = optuna.create_study()
+        study.optimize(run2, n_trials=32)
+        print(study.best_params)  # E.g. {'x': 2.002108042}
+
 
 
 
 
 if __name__ == "__main__":
-    main()
+    main2()
+
 
 
