@@ -160,7 +160,7 @@ class FCNet(nn.Module):
     
     
 class GCN(torch.nn.Module):
-    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64):
+    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         self.conv1 = GCNConv(in_chn, hidden_channels)
@@ -197,7 +197,7 @@ class Run:
         self.device = torch.device("cuda")  # 'cuda'
         self.target = [i.lstrip() for i in args.target.split('-')]
 
-        self.net = GCN(in_chn=4, out_chn=len(self.target))  # receive ct and pcd as input
+        self.net = GCN(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
             
         self.fold = args.fold
         self.flops_done = False

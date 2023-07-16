@@ -139,7 +139,6 @@ def get_args(jupyter=False):
     parser.add_argument('--cosine_decay', help='cosine_decay',
                         type=boolean_string, default='False')
     
-    
     # others
     parser.add_argument(
         '--outfile', help='output file when running by script instead of pycharm', type=str)
