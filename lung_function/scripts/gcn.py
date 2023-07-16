@@ -312,8 +312,8 @@ class Run:
                 loss = self.loss_fun(pred, data_batch.y.reshape(pred.shape))
                 with torch.no_grad():
                     if len(batch_y.shape) == 2 and self.args.loss!='ce':
-                        mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(self.target))]
-                        mae_all = loss_fun_mae(pred, batch_y).item()
+                        mae_ls = [loss_fun_mae(pred[:, i], data_batch.y.reshape(pred.shape)[:, i]).item() for i in range(len(self.target))]
+                        mae_all = loss_fun_mae(pred, data_batch.y.reshape(pred.shape)).item()
                     else:
                         mae_ls = [loss]
                         mae_all = loss.item()
