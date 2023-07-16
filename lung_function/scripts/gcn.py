@@ -55,18 +55,14 @@ from lung_function.modules.path import PFTPath
 import os
 
 from monai.data import DataLoader
-from sklearn.preprocessing import StandardScaler
-
 
 from lung_function.modules import provider
 from lung_function.modules.compute_metrics import icc, metrics
 from lung_function.modules.dataset_gcn import all_loaders
 from lung_function.modules.loss import get_loss
-from lung_function.modules.networks import get_net_3d
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
-from lung_function.modules.trans import batch_bbox2_3D
 
 args = get_args()
 global_lock = threading.Lock()
@@ -104,7 +100,7 @@ def disable_func(func):
             pass
     return _try_fun
 
-log_metric, log_metrics, log_param, log_params = map(disable_func, (log_metric, log_metrics, log_param, log_params))
+# log_metric, log_metrics, log_param, log_params = map(disable_func, (log_metric, log_metrics, log_param, log_params))
     
     
 def int2str(batch_id: np.ndarray) -> np.ndarray:
@@ -186,9 +182,10 @@ class GCN(torch.nn.Module):
         self.conv1 = GCNConv(in_chn, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
         self.conv3 = GCNConv(hidden_channels, hidden_channels)
-        self.classifier = FCNet(1024, out_chn)
+        self.classifier = FCNet(hidden_channels, out_chn)
 
-    def forward(self, x, edge_index, out_feature=False):
+    def forward(self, x, edge_index, batch_idx, out_feature=False):
+        B = x.shape[0]
         # 1. Obtain node embeddings 
         x = self.conv1(x, edge_index)
         x = x.relu()
@@ -197,10 +194,10 @@ class GCN(torch.nn.Module):
         x = self.conv3(x, edge_index)
 
         # 2. Readout layer
-        feature = global_mean_pool(x, 1024)  # [batch_size, hidden_channels]
+        feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
 
         # 3. Apply a final classifier
-        x = self.classifier(feature.reshape(1, -1))
+        x = self.classifier(feature)
         
         if out_feature:
             return x, feature
@@ -266,43 +263,37 @@ class Run:
         mae_accu_all = 0
         len_data = len(self.dataloader[mode])
         for data_batch in self.dataloader[mode]:
+            data_batch.x = data_batch.x.to(self.device)
+            data_batch.edge_index = data_batch.edge_index.to(self.device)
+            data_batch.batch = data_batch.batch.to(self.device)
+            data_batch.y = data_batch.y.to(self.device)
             
             torch.cuda.empty_cache()  # avoid memory leak
-            data_idx += 1
-            if epoch_idx < 3:  # only show first 3 epochs' data loading time
-                t1 = time.time()
-                log_metric('TLoad', t1 - t0, data_idx + epoch_idx * len_data)
-     
-            lab = 0
-            patid = 0
-            data = 0
-            batch_x = data.x
-            batch_y = lab
 
             if not self.flops_done:  # only calculate macs and params once
-                macs, params = thop.profile(self.net, inputs=(batch_x, ))
+                macs, params = thop.profile(self.net, inputs=(data_batch.x, data_batch.edge_index, data_batch.batch ))
                 self.flops_done = True
                 log_param('macs_G', str(round(macs/1e9, 2)))
                 log_param('net_params_M', str(round(params/1e6, 2)))
-            
+                
+            data_idx += 1
 
-
+            t1 = time.time()
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference
                     with torch.no_grad():
-                        pred = self.net(batch_x)
+                        pred = self.net(data_batch.x, data_batch.edge_index, data_batch.batch)
                 else:
-                    pred = self.net(batch_x)
+                    pred = self.net(data_batch.x, data_batch.edge_index, data_batch.batch)
                 
                 if save_pred:
                     head = ['pat_id']
                     head.extend(self.target)
 
-                    batch_pat_id = patid.cpu(
-                    ).detach().numpy()  # shape (N,1)
+                    batch_pat_id = np.array(data_batch.pat_id)  # shape (N,1)
                     batch_pat_id = int2str(batch_pat_id)  # shape (N,1)
 
-                    batch_y_np = batch_y.cpu().detach().numpy()  # shape (N, out_nb)
+                    batch_y_np = data_batch.y.reshape(pred.shape).cpu().detach().numpy()  # shape (N, out_nb)
                     pred_np = pred.cpu().detach().numpy()  # shape (N, out_nb)
 
                     saved_label = np.hstack((batch_pat_id, batch_y_np))
@@ -318,15 +309,9 @@ class Run:
                     medutils.appendrows_to(label_fpath, saved_label, head=head)
                     medutils.appendrows_to(pred_fpath, saved_pred, head=head)
 
-                loss = self.loss_fun(pred, batch_y)
-                
-                with torch.no_grad():
-                    if len(batch_y.shape) == 2 and self.args.loss!='ce':
-                        mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(self.target))]
-                        mae_all = loss_fun_mae(pred, batch_y).item()
-                    else:
-                        mae_ls = [loss]
-                        mae_all = loss.item()
+                loss = self.loss_fun(pred, data_batch.y.reshape(pred.shape))
+                mae_ls = [loss]
+                mae_all = loss.item()
 
                     
 
@@ -407,7 +392,7 @@ def run(args: Namespace):
                     else:
                         model = ckpt
                     # model_fpath need to exist
-                    myrun.net.load_state_dict(model)
+                    myrun.net.load_state_dict(model, strict=False)
                     print(f"load net from {myrun.mypath.model_fpath}")
                 else:
                     print(
@@ -449,8 +434,7 @@ def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='pa
             target_dt = mlflow_run.data.metrics
             current_dt = current_run.data.metrics
         else:
-            raise Exception(
-                f"Expected key of 'params' or 'metrics', but got key: {key}")
+            raise Exception( f"Expected key of 'params' or 'metrics', but got key: {key}")
 
         for k, v in target_dt.items():
             if k not in current_dt:  # re-writing parameters in mlflow is not allowed
@@ -648,7 +632,7 @@ def main():
     np.random.seed(SEED)
 
     mlflow.set_tracking_uri("http://nodelogin02:5000")
-    experiment = mlflow.set_experiment("lung_fun_db15666")
+    experiment = mlflow.set_experiment("lung_fun_gcn")
     
     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
     # write super parameters from set_args.py to record file.
