@@ -310,8 +310,13 @@ class Run:
                     medutils.appendrows_to(pred_fpath, saved_pred, head=head)
 
                 loss = self.loss_fun(pred, data_batch.y.reshape(pred.shape))
-                mae_ls = [loss]
-                mae_all = loss.item()
+                with torch.no_grad():
+                    if len(batch_y.shape) == 2 and self.args.loss!='ce':
+                        mae_ls = [loss_fun_mae(pred[:, i], batch_y[:, i]).item() for i in range(len(self.target))]
+                        mae_all = loss_fun_mae(pred, batch_y).item()
+                    else:
+                        mae_ls = [loss]
+                        mae_all = loss.item()
 
                     
 
