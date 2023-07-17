@@ -142,9 +142,9 @@ class FCNet(nn.Module):
         super().__init__()
 
         self.nb_feature = in_chn
-        # fc0, fc1 = 1024, 256
-        fc0 = args.trial.suggest_categorical('fc0', [1024, 512, 256])
-        fc1 = args.trial.suggest_categorical('fc1', [256, 128])
+        fc0, fc1 = 1024, 256
+        # fc0 = args.trial.suggest_categorical('fc0', [1024, 512, 256])
+        # fc1 = args.trial.suggest_categorical('fc1', [256, 128])
                 
 
         self.fc1 = nn.Linear(self.nb_feature, fc0)
@@ -169,10 +169,12 @@ class GCN(torch.nn.Module):
     def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
-        hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64])
+        hidden_channels = 32
+        # hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64])
         self.conv1 = GCNConv(in_chn, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.gcv3 = args.trial.suggest_categorical('gcv3', [True, False])
+        self.gcv3 = True
+        # self.gcv3 = args.trial.suggest_categorical('gcv3', [True, False])
         if self.gcv3:
             self.conv3 = GCNConv(hidden_channels, hidden_channels)
         self.classifier = FCNet(hidden_channels, out_chn, args)
@@ -756,7 +758,7 @@ def main2():
 
 
 if __name__ == "__main__":
-    main2()
+    main()
 
 
 
