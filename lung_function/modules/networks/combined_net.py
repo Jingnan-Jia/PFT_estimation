@@ -125,6 +125,9 @@ class CombinedNet(nn.Module):
         x = self.drop2(F.relu(self.bn2(self.fc2(x))))
         out = self.fc3(x)
 
+        if self.nb_feature == 192:
 
-        return out, ct_features, pcd_features
+            return out, ct_features_norm, pcd_features_to_192
+        else:
+            return out, ct_features_norm, pcd_features_norm
     

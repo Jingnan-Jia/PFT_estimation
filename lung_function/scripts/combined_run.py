@@ -130,6 +130,7 @@ class Run:
 
         self.loss_fun = get_loss(
             args.loss, mat_diff_loss_scale=args.mat_diff_loss_scale)
+        self.loss_fun_cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         if args.adamw:
             self.opt = torch.optim.AdamW(self.net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -350,6 +351,8 @@ class Run:
                     loss = self.loss_fun(pred, batch_y.to(torch.int64))
                 else:
                     loss = self.loss_fun(pred, batch_y)
+                    loss_cos = self.loss_fun_cos(ct_features, pcd_features)
+                    loss = loss + loss_cos
                 
                 with torch.no_grad():
                     if len(batch_y.shape) == 2 and self.args.loss!='ce':
