@@ -130,7 +130,7 @@ class Run:
 
         self.loss_fun = get_loss(
             args.loss, mat_diff_loss_scale=args.mat_diff_loss_scale)
-        self.loss_fun_cosine = nn.CosineEmbeddingLoss()
+        self.loss_fun_cosine = nn.CosineSimilarity(dim=2)
         if args.adamw:
             self.opt = torch.optim.AdamW(self.net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -149,12 +149,12 @@ class Run:
             args.input_mode = ori_input_mode.split('-')[0]
             args.ct_sp = '1.5'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_ct = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=2000)
             
             args.input_mode = ori_input_mode.split('-')[1]
             args.ct_sp = 'ori'
             self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
+            self.data_dt_pcd = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=2000)
             args.input_mode = ori_input_mode
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
@@ -351,7 +351,7 @@ class Run:
                     loss = self.loss_fun(pred, batch_y.to(torch.int64))
                 else:
                     loss = self.loss_fun(pred, batch_y)
-                    loss_cos = self.loss_fun_cosine(ct_features, pcd_features, target=1)
+                    loss_cos = 1 - self.loss_fun_cosine(ct_features, pcd_features)[0][0]
                     loss = loss + loss_cos
                 
                 with torch.no_grad():

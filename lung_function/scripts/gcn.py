@@ -747,6 +747,7 @@ def main2():
                     tmp_args_dt = vars(args)
                     log_params(tmp_args_dt)
                     loss = run(args)
+                    
             return loss
                     
         study = optuna.create_study()
