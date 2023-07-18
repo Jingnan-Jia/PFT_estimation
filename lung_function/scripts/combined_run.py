@@ -130,7 +130,7 @@ class Run:
 
         self.loss_fun = get_loss(
             args.loss, mat_diff_loss_scale=args.mat_diff_loss_scale)
-        self.loss_fun_cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        self.loss_fun_cosine = nn.CosineEmbeddingLoss()
         if args.adamw:
             self.opt = torch.optim.AdamW(self.net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -351,7 +351,7 @@ class Run:
                     loss = self.loss_fun(pred, batch_y.to(torch.int64))
                 else:
                     loss = self.loss_fun(pred, batch_y)
-                    loss_cos = self.loss_fun_cos(ct_features, pcd_features)
+                    loss_cos = self.loss_fun_cosine(ct_features, pcd_features, target=1)
                     loss = loss + loss_cos
                 
                 with torch.no_grad():
@@ -362,7 +362,7 @@ class Run:
                         mae_ls = [loss]
                         mae_all = loss.item()
 
-                    
+
 
             if mode == 'train' and save_pred is not True:  # update gradients only when training
                 self.opt.zero_grad()
