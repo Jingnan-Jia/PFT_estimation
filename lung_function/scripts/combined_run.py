@@ -351,7 +351,7 @@ class Run:
                     loss = self.loss_fun(pred, batch_y.to(torch.int64))
                 else:
                     loss = self.loss_fun(pred, batch_y)
-                    loss_cos = 1 - self.loss_fun_cosine(ct_features, pcd_features)[0][0]
+                    loss_cos = self.loss_fun_cosine(ct_features, pcd_features)[0][0]
                     loss = loss + loss_cos
                 
                 with torch.no_grad():
