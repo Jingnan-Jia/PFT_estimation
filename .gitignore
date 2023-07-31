@@ -15,3 +15,6 @@ lung_function/modules/__pycache__/
 *.nii.gz
 *.nrrd
 *.nii
+*.pt
+*.pth
+*.pty
