@@ -161,7 +161,7 @@ def get_args(jupyter=False):
         args.set_all_xyz_to_1 = True
     if args.input_mode == 'vessel_skeleton_pcd':
         args.ct_sp = 'ori'
-        args.batch_size = 5
+        # args.batch_size = 5
     elif args.input_mode == 'lung_mask_pcd':
         args.ct_sp = '1.5'
         args.PNB = 28000
