@@ -207,7 +207,7 @@ class Run:
                 # move the new initialized layers to GPU
                 self.net = self.net.to(self.device)
         if dataloader_flag:
-            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args)
+            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=2)
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
                              # 'trainnoaugLossEpochBest': 1000,
@@ -283,7 +283,7 @@ class Run:
             elif args.input_mode == 'modelnet40_pcd':  # ModelNet, ShapeNet
                 batch_x = data[0]
             else:
-                pass
+                batch_x = data[key]
             
             if args.input_mode == 'ct_masked_by_lung':
                 a = copy.deepcopy(data['lung_mask'])

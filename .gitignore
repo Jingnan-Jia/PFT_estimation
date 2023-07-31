@@ -18,3 +18,7 @@ lung_function/modules/__pycache__/
 *.pt
 *.pth
 *.pty
+*.gif
+*.png
+*.jpg
+*mlruns/*
