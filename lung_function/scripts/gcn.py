@@ -171,23 +171,30 @@ class GCN(torch.nn.Module):
         torch.manual_seed(12345)
         hidden_channels = 32
         hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
-        layers_nb = args.trial.suggest_int('layers_nb', 2, 30)
-        conv_layer_ls = []
+        layers_nb = args.trial.suggest_int('layers_nb', 2, 15)
+        self.conv_layer_ls = []
         for i in range(layers_nb):
             if i == 0:
-                conv_layer_ls.append(GCNConv(in_chn, hidden_channels))
+                self.conv_layer_ls.append(GCNConv(in_chn, hidden_channels))
             else:
-                conv_layer_ls.append(GCNConv(hidden_channels, hidden_channels))
-            conv_layer_ls.append(nn.ReLU(inplace=True))
-            conv_layer_ls.append(nn.BatchNorm2d(hidden_channels))
+                self.conv_layer_ls.append(GCNConv(hidden_channels, hidden_channels))
+            self.conv_layer_ls.append(nn.ReLU(inplace=True))
+            self.conv_layer_ls.append(nn.LayerNorm(hidden_channels))
             
-        self.extractor = torch.nn.Sequential(*conv_layer_ls)
+        self.extractor = torch.nn.Sequential(*self.conv_layer_ls)
         self.classifier = FCNet(hidden_channels, out_chn, args)
 
     def forward(self, x, edge_index, batch_idx, out_feature=False):
         B = x.shape[0]
         # 1. Obtain node embeddings 
-        x = self.extractor(x, edge_index)
+        # for layer in self.conv_layer_ls:
+        #     x = layer(x, edge_index)
+        for layer in self.extractor:
+            if isinstance(layer, GCNConv):
+                x = layer(x, edge_index)
+            else:
+                x = layer(x)
+        # x = self.extractor(x, edge_index)
         # x = self.conv1(x, edge_index)
         # x = x.relu()
         # x = self.conv2(x, edge_index)
@@ -216,7 +223,7 @@ class Run:
         self.target = [i.lstrip() for i in args.target.split('-')]
 
         self.net = GCN(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
-            
+        self.net.to(self.device)
         self.fold = args.fold
         self.flops_done = False
         self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
