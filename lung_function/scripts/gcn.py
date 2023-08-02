@@ -170,13 +170,18 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         hidden_channels = 32
-        # hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64])
-        self.conv1 = GCNConv(in_chn, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.gcv3 = True
-        # self.gcv3 = args.trial.suggest_categorical('gcv3', [True, False])
-        if self.gcv3:
-            self.conv3 = GCNConv(hidden_channels, hidden_channels)
+        hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
+        layers_nb = args.trial.suggest_int('layers_nb', [2, 30])
+        conv_layer_ls = []
+        for i in range(layers_nb):
+            if i == 0:
+                conv_layer_ls.append(GCNConv(in_chn, hidden_channels))
+            else:
+                conv_layer_ls.append(GCNConv(hidden_channels, hidden_channels))
+            conv_layer_ls.append(nn.ReLU(inplace=True))
+            conv_layer_ls.append(nn.BatchNorm2d(hidden_channels))
+            
+        self.extractor = torch.nn.Sequential(*conv_layer_ls)
         self.classifier = FCNet(hidden_channels, out_chn, args)
 
     def forward(self, x, edge_index, batch_idx, out_feature=False):
@@ -732,7 +737,7 @@ def main2():
         def run2(trial):
             args.trial = trial
             args.epochs = 50
-            args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
+            # args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
             
             args.batch_size = args.trial.suggest_categorical('batch_size', [32, 16, 8])
             for fold in [1]:
@@ -749,10 +754,12 @@ def main2():
                     loss = run(args)
                     
             return loss
-                    
-        study = optuna.create_study()
-        study.optimize(run2, n_trials=32)
-        print(study.best_params)  # E.g. {'x': 2.002108042}
+
+        
+        storage_name = "sqlite:///optuna.db"
+        study = optuna.create_study(storage=storage_name)
+        study.optimize(run2, n_trials=16)
+        print(study.best_params)  
 
 
 
