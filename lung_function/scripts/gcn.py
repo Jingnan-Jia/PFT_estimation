@@ -664,7 +664,7 @@ def main():
                 # args.mode = 'infer'  # disable it for normal training
                 tmp_args_dt = vars(args)
                 log_params(tmp_args_dt)
-                run2(args)
+                run(args)
         log_metrics_all_folds_average( all_folds_id_ls, current_id, experiment)
         
         fold_ex_dt = {0: current_id, 
@@ -766,7 +766,7 @@ def main2():
 
 
 if __name__ == "__main__":
-    main()
+    main2()
 
 
 
