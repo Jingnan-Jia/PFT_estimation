@@ -170,10 +170,10 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         hidden_channels = 32
-        hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
-        layers_nb = args.trial.suggest_int('layers_nb', 2, 15)
+        args.hidden_channels = hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
+        args.layers_nb = args.trial.suggest_int('layers_nb', 2, 15)
         self.conv_layer_ls = []
-        for i in range(layers_nb):
+        for i in range(args.layers_nb):
             if i == 0:
                 self.conv_layer_ls.append(GCNConv(in_chn, hidden_channels))
             else:
