@@ -747,7 +747,7 @@ def main2():
             args.epochs = 50
             # args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
             
-            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 16, 8])
+            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 64, 96])
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
 
