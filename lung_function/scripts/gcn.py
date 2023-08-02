@@ -187,12 +187,13 @@ class GCN(torch.nn.Module):
     def forward(self, x, edge_index, batch_idx, out_feature=False):
         B = x.shape[0]
         # 1. Obtain node embeddings 
-        x = self.conv1(x, edge_index)
-        x = x.relu()
-        x = self.conv2(x, edge_index)
-        x = x.relu()
-        if self.gcv3:
-            x = self.conv3(x, edge_index)
+        x = self.extractor(x, edge_index)
+        # x = self.conv1(x, edge_index)
+        # x = x.relu()
+        # x = self.conv2(x, edge_index)
+        # x = x.relu()
+        # if self.gcv3:
+        #     x = self.conv3(x, edge_index)
 
         # 2. Readout layer
         feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
