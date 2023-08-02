@@ -171,7 +171,7 @@ class GCN(torch.nn.Module):
         torch.manual_seed(12345)
         hidden_channels = 32
         args.hidden_channels = hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
-        args.layers_nb = args.trial.suggest_int('layers_nb', 2, 15)
+        args.layers_nb = 4
         self.conv_layer_ls = []
         for i in range(args.layers_nb):
             if i == 0:
@@ -747,7 +747,7 @@ def main2():
             args.epochs = 50
             # args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
             
-            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 64, 96])
+            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 64])
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
 
