@@ -49,7 +49,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=10)
+                        type=int, default=32)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='ori')
     parser.add_argument('--kfold_seed', help='kfold_seed',

@@ -142,9 +142,9 @@ class FCNet(nn.Module):
         super().__init__()
 
         self.nb_feature = in_chn
-        fc0, fc1 = 1024, 256
-        # fc0 = args.trial.suggest_categorical('fc0', [1024, 512, 256])
-        # fc1 = args.trial.suggest_categorical('fc1', [256, 128])
+        # fc0, fc1 = 1024, 256
+        args.fc0 = fc0 = args.trial.suggest_categorical('fc0', [1024])
+        args.fc1 = fc1 = args.trial.suggest_categorical('fc1', [1024, 512, 256])
                 
 
         self.fc1 = nn.Linear(self.nb_feature, fc0)
@@ -154,7 +154,6 @@ class FCNet(nn.Module):
         self.bn2 = nn.InstanceNorm1d(fc1)
         self.drop2 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(fc1, out_chn)
-        
         
 
     def forward(self, x):  # x shape: (B, n)
