@@ -218,6 +218,49 @@ class GCN(torch.nn.Module):
             return x, feature
         return x
 
+class GCNWhole(torch.nn.Module):
+    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
+        super(GCNWhole, self).__init__()
+        torch.manual_seed(12345)
+        hidden_channels = 32
+        args.hidden_channels = hidden_channels = 128 
+        # args.trial.suggest_categorical('hidden_channels', [128])
+        args.layers_nb = 4
+        args.model_name = args.trial.suggest_categorical('gconv_name', ['GCN', 'GraphSAGE', 'GIN', 'GAT', 
+                                                                        'EdgeCNN', 'PointTransformerConv',   'LGConv'])
+        kwargs = {'in_channels': in_chn,
+                  'hidden_channels': hidden_channels,
+                  'num_layers': 4,
+                  'out_channels': out_chn}
+        if args.model_name == 'XConv':
+            del kwargs['num_layers']
+        elif args.model_name in ['JumpingKnowledge', 'MetaLayer', 'DeepGCNLayer']:
+            raise Exception('model not defined', args.model_name)
+        else:
+            pass
+        self.Gconv = getattr(torch_geometric.nn, args.model_name)
+        
+            
+        self.extractor = self.Gconv(in_channels = in_chn, 
+                                    hidden_channels = hidden_channels,
+                                    num_layers = 4,
+                                    out_channels = hidden_channels)
+        self.classifier = FCNet(hidden_channels, out_chn, args)
+        
+    def forward(self, x, edge_index, batch_idx, out_feature=False):
+        B = x.shape[0]
+        
+        x = self.extractor(x, edge_index)      
+        # 2. Readout layer
+        feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
+        
+        # 3. Apply a final classifier
+        x = self.classifier(feature)
+        
+        if out_feature:
+            return x, feature
+        return x
+
     
 class Run:
     """A class which has its dataloader and step_iteration. It is like Lighting. 
@@ -228,7 +271,7 @@ class Run:
         self.device = torch.device("cuda")  # 'cuda'
         self.target = [i.lstrip() for i in args.target.split('-')]
 
-        self.net = GCN(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
+        self.net = GCNWhole(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
         self.net.to(self.device)
         self.fold = args.fold
         self.flops_done = False

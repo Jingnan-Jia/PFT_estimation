@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=gpu-long,amd-gpu-long
+#SBATCH --partition=amd-gpu-long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=12
 ##SBATCH -t 7-00:00:00
