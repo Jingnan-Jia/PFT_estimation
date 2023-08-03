@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from time import time
 import numpy as np
-
+import time
 def timeit(tag, t):
     print("{}: {}s".format(tag, time() - t))
     return time()
@@ -177,7 +177,13 @@ def sample_and_group(npoint, radius, nsample, xyz, points, returnfps=False):
     B, N, d = xyz.shape
     S = npoint
     # Sampling
-    fps_idx = farthest_point_sample(xyz, npoint) # index used to get value from xyz, [B, npoint]
+    # to = time.time()
+    # fps_idx1 = farthest_point_sample(xyz, npoint) # index used to get value from xyz, [B, npoint]
+    # t1 = time.time()
+    fps_idx = torch.randint(0, N, size=(B, npoint)).to(xyz.device)  
+    # t2 = time.time()
+    # print('fartest time', t1-to)
+    # print('random time', t2-t1)
     new_xyz = index_points(xyz, fps_idx)  # get new xyz from xyz using the index, [B, npoint, d=3]
 
     # Grouping

@@ -196,8 +196,6 @@ class Run:
                             # model = {k:v for k,v in model.items() if 'fc1' in k }
                             excluded_keys = ['fc1', 'bn1', 'drop1', 'fc2', 'bn2', 'drop2', 'fc3']  # FC layers
                             model = {key: value for key, value in model.items() if all(excluded_key not in key for excluded_key in excluded_keys)}
-
-                              
                 else:
                     model = ckpt
                 # model_fpath need to exist
@@ -207,7 +205,7 @@ class Run:
                 # move the new initialized layers to GPU
                 self.net = self.net.to(self.device)
         if dataloader_flag:
-            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=20000)
+            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=2000)
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
                              # 'trainnoaugLossEpochBest': 1000,

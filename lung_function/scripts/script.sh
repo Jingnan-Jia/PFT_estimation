@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --partition=amd-gpu-long
+#SBATCH --partition=gpu-long,amd-gpu-long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=12
 ##SBATCH -t 7-00:00:00
-#SBATCH --mem-per-gpu=120G
+#SBATCH --mem-per-gpu=60G
 #SBATCH -e results/logs/slurm-%j.err
 #SBATCH -o results/logs/slurm-%j.out
 ##SBATCH --mail-type=end
@@ -72,10 +72,10 @@ conda activate py38
 
 
 # shellcheck disable=SC2046
-# idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --batch_size=4 --remark="ct, x3d_m, batch size=4"
+idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --remark="re-run pointnet++, using random sample in net, save time"
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --pretrained_ct='ct' --remark="combined_run,negtive add cos_loss "
 # idx=1; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='x3d_m' --pretrained_imgnet=True --batch_size=1 --input_mode="ct_masked_by_lung" --epochs=100 --target='TLC_He' --remark="1 outputs, from pretraining" &
 # wait
-idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u gcn.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --batch_size=16 --lr=0.001 --epochs=500 --remark="try different numbers of layers"
+# idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u gcn.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --batch_size=16 --lr=0.001 --epochs=500 --remark="try different numbers of layers"
 
 
