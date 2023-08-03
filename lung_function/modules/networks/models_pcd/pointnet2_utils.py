@@ -178,9 +178,9 @@ def sample_and_group(npoint, radius, nsample, xyz, points, returnfps=False):
     S = npoint
     # Sampling
     # to = time.time()
-    # fps_idx1 = farthest_point_sample(xyz, npoint) # index used to get value from xyz, [B, npoint]
+    fps_idx = farthest_point_sample(xyz, npoint) # index used to get value from xyz, [B, npoint]
     # t1 = time.time()
-    fps_idx = torch.randint(0, N, size=(B, npoint)).to(xyz.device)  
+    # fps_idx = torch.randint(0, N, size=(B, npoint)).to(xyz.device)  
     # t2 = time.time()
     # print('fartest time', t1-to)
     # print('random time', t2-t1)

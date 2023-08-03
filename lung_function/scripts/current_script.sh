@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --partition=gpu-long
+#SBATCH --partition=gpu-long,amd-gpu-long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=12
 ##SBATCH -t 7-00:00:00
-#SBATCH --mem-per-gpu=120G
+#SBATCH --mem-per-gpu=60G
 #SBATCH -e results/logs/slurm-%j.err
 #SBATCH -o results/logs/slurm-%j.out
 ##SBATCH --mail-type=end
