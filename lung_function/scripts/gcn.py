@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-
+import torch_geometric
 from torch_geometric.data import data
 from torch_geometric.utils.convert import to_networkx
 from torch_geometric.nn import GCNConv
@@ -142,9 +142,9 @@ class FCNet(nn.Module):
         super().__init__()
 
         self.nb_feature = in_chn
-        # fc0, fc1 = 1024, 256
-        args.fc0 = fc0 = args.trial.suggest_categorical('fc0', [1024])
-        args.fc1 = fc1 = args.trial.suggest_categorical('fc1', [1024, 512, 256])
+        fc0, fc1 = 1024, 1024
+        # args.fc0 = fc0 = args.trial.suggest_categorical('fc0', [1024])
+        # args.fc1 = fc1 = args.trial.suggest_categorical('fc1', [1024])
                 
 
         self.fc1 = nn.Linear(self.nb_feature, fc0)
@@ -169,27 +169,34 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         hidden_channels = 32
-        args.hidden_channels = hidden_channels = args.trial.suggest_categorical('hidden_channels', [32, 64, 128])
+        args.hidden_channels = hidden_channels = 128 
+        # args.trial.suggest_categorical('hidden_channels', [128])
         args.layers_nb = 4
         self.conv_layer_ls = []
+        args.gconv_name = args.trial.suggest_categorical('gconv_name', ['GCNConv', 'ChebConv', 'SAGEConv', 'CuGraphSAGEConv', 
+                                                                        'GraphConv', 'GATConv', 'CuGraphGATConv', 'SGConv', 
+                                                                        'MFConv', 'RGCNConv', 'CuGraphRGCNConv', 'GMMConv',
+                                                                        'NNConv', 'EdgeConv', 'XConv', 'PointTransformerConv', 'HANConv',  'LGConv'])
+        self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
+        
         for i in range(args.layers_nb):
             if i == 0:
-                self.conv_layer_ls.append(GCNConv(in_chn, hidden_channels))
+                self.conv_layer_ls.append(self.Gconv(in_chn, hidden_channels))
             else:
-                self.conv_layer_ls.append(GCNConv(hidden_channels, hidden_channels))
+                self.conv_layer_ls.append(self.Gconv(hidden_channels, hidden_channels))
             self.conv_layer_ls.append(nn.ReLU(inplace=True))
             self.conv_layer_ls.append(nn.LayerNorm(hidden_channels))
             
         self.extractor = torch.nn.Sequential(*self.conv_layer_ls)
         self.classifier = FCNet(hidden_channels, out_chn, args)
-
+        
     def forward(self, x, edge_index, batch_idx, out_feature=False):
         B = x.shape[0]
         # 1. Obtain node embeddings 
         # for layer in self.conv_layer_ls:
         #     x = layer(x, edge_index)
         for layer in self.extractor:
-            if isinstance(layer, GCNConv):
+            if isinstance(layer, self.Gconv):
                 x = layer(x, edge_index)
             else:
                 x = layer(x)
@@ -744,9 +751,7 @@ def main2():
         def run2(trial):
             args.trial = trial
             args.epochs = 50
-            # args.lr = args.trial.suggest_categorical('lr', [1e-4, 1e-3])
-            
-            args.batch_size = args.trial.suggest_categorical('batch_size', [32, 64])
+           
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
 
