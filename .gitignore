@@ -4,6 +4,9 @@ lung_function/scripts/mlruns/
 lung_function/results_archive/
 lung_function/modules/__pycache__/
 lung_function/data/
+lung_function/modules/networks/models_pcd/pre_trained/ 
+lung_function/modules/ulip/
+lung_function/scripts/generate_figures/
 *.pyc
 .neptune/
 .idea/
