@@ -3,12 +3,16 @@ lung_function/scripts/results/
 lung_function/scripts/mlruns/
 lung_function/results_archive/
 lung_function/modules/__pycache__/
+lung_function/data/
 *.pyc
 .neptune/
 .idea/
 .vscode/
 *.db
+*.db_copy
 *.db-jornal*
+*.zip*
+
 *.csv
 *.mha
 *.mhd
@@ -22,3 +26,4 @@ lung_function/modules/__pycache__/
 *.png
 *.jpg
 *mlruns/*
+*/wandb/*
