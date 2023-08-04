@@ -143,15 +143,17 @@ class FCNet(nn.Module):
 
         self.nb_feature = in_chn
         fc0, fc1 = 1024, 1024
-        # args.fc0 = fc0 = args.trial.suggest_categorical('fc0', [1024])
-        # args.fc1 = fc1 = args.trial.suggest_categorical('fc1', [1024])
-                
-
+        args.bn = 'inst'
+        if args.bn == 'inst':
+            self.bn1 = nn.InstanceNorm1d(fc0) 
+            self.bn2 = nn.InstanceNorm1d(fc1)
+        else:
+            self.bn1 = nn.BatchNorm1d(fc0) 
+            self.bn2 = nn.BatchNorm1d(fc1)
+  
         self.fc1 = nn.Linear(self.nb_feature, fc0)
-        self.bn1 = nn.InstanceNorm1d(fc0) 
         self.drop1 = nn.Dropout(0.4)
         self.fc2 = nn.Linear(fc0, fc1)
-        self.bn2 = nn.InstanceNorm1d(fc1)
         self.drop2 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(fc1, out_chn)
         
@@ -169,21 +171,24 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         hidden_channels = 32
-        args.hidden_channels = hidden_channels = 128 
-        # args.trial.suggest_categorical('hidden_channels', [128])
-        args.layers_nb = 4
+        args.hidden_channels = hidden_channels = 128
+        args.layers_nb = 2
+
         self.conv_layer_ls = []
-        args.gconv_name = args.trial.suggest_categorical('gconv_name', ['GCNConv', 'ChebConv', 'SAGEConv', 'CuGraphSAGEConv', 
-                                                                        'GraphConv', 'GATConv', 'CuGraphGATConv', 'SGConv', 
-                                                                        'MFConv', 'RGCNConv', 'CuGraphRGCNConv', 'GMMConv',
-                                                                        'NNConv', 'EdgeConv', 'XConv', 'PointTransformerConv', 'HANConv',  'LGConv'])
+
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
+
+        first_kwargs = {'in_channels': in_chn, 'out_channels': hidden_channels}
+        mid_kwargs = {'in_channels': hidden_channels, 'out_channels': hidden_channels}
+     
+            
+            
         
         for i in range(args.layers_nb):
             if i == 0:
-                self.conv_layer_ls.append(self.Gconv(in_chn, hidden_channels))
+                self.conv_layer_ls.append(self.Gconv(**first_kwargs))
             else:
-                self.conv_layer_ls.append(self.Gconv(hidden_channels, hidden_channels))
+                self.conv_layer_ls.append(self.Gconv(**mid_kwargs))
             self.conv_layer_ls.append(nn.ReLU(inplace=True))
             self.conv_layer_ls.append(nn.LayerNorm(hidden_channels))
             
@@ -218,48 +223,46 @@ class GCN(torch.nn.Module):
             return x, feature
         return x
 
-class GCNWhole(torch.nn.Module):
-    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
-        super(GCNWhole, self).__init__()
-        torch.manual_seed(12345)
-        hidden_channels = 32
-        args.hidden_channels = hidden_channels = 128 
-        # args.trial.suggest_categorical('hidden_channels', [128])
-        args.layers_nb = 4
-        args.model_name = args.trial.suggest_categorical('gconv_name', ['GCN', 'GraphSAGE', 'GIN', 'GAT', 
-                                                                        'EdgeCNN', 'PointTransformerConv',   'LGConv'])
-        kwargs = {'in_channels': in_chn,
-                  'hidden_channels': hidden_channels,
-                  'num_layers': 4,
-                  'out_channels': out_chn}
-        if args.model_name == 'XConv':
-            del kwargs['num_layers']
-        elif args.model_name in ['JumpingKnowledge', 'MetaLayer', 'DeepGCNLayer']:
-            raise Exception('model not defined', args.model_name)
-        else:
-            pass
-        self.Gconv = getattr(torch_geometric.nn, args.model_name)
+# class GCNWhole(torch.nn.Module):
+#     def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
+#         super(GCNWhole, self).__init__()
+#         torch.manual_seed(12345)
+#         args.hidden_channels = hidden_channels = args.trial.suggest_categorical('hidden_channels', [64, 128, 256])
+        
+#         args.layers_nb = args.trial.suggest_categorical('hidden_channels', [3, 4, 5])
+
+#         kwargs = {'in_channels': in_chn,
+#                   'hidden_channels': hidden_channels,
+#                   'num_layers': args.layers_nb,
+#                   'out_channels': out_chn}
+#         if args.model_name == 'XConv':
+#             del kwargs['num_layers']
+#         elif args.model_name in ['JumpingKnowledge', 'MetaLayer', 'DeepGCNLayer']:
+#             raise Exception('model not defined', args.model_name)
+#         else:
+#             pass
+#         self.Gconv = getattr(torch_geometric.nn, args.model_name)
         
             
-        self.extractor = self.Gconv(in_channels = in_chn, 
-                                    hidden_channels = hidden_channels,
-                                    num_layers = 4,
-                                    out_channels = hidden_channels)
-        self.classifier = FCNet(hidden_channels, out_chn, args)
+#         self.extractor = self.Gconv(in_channels = in_chn, 
+#                                     hidden_channels = hidden_channels,
+#                                     num_layers = 4,
+#                                     out_channels = hidden_channels)
+#         self.classifier = FCNet(hidden_channels, out_chn, args)
         
-    def forward(self, x, edge_index, batch_idx, out_feature=False):
-        B = x.shape[0]
+#     def forward(self, x, edge_index, batch_idx, out_feature=False):
+#         B = x.shape[0]
         
-        x = self.extractor(x, edge_index)      
-        # 2. Readout layer
-        feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
+#         x = self.extractor(x, edge_index)      
+#         # 2. Readout layer
+#         feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
         
-        # 3. Apply a final classifier
-        x = self.classifier(feature)
+#         # 3. Apply a final classifier
+#         x = self.classifier(feature)
         
-        if out_feature:
-            return x, feature
-        return x
+#         if out_feature:
+#             return x, feature
+#         return x
 
     
 class Run:
@@ -270,13 +273,15 @@ class Run:
         self.args = args
         self.device = torch.device("cuda")  # 'cuda'
         self.target = [i.lstrip() for i in args.target.split('-')]
-
-        self.net = GCNWhole(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
+        
+        print('conv name', args.gconv_name)
+        
+        self.net = GCN(in_chn=4, out_chn=len(self.target), args=args)  # receive ct and pcd as input
         self.net.to(self.device)
         self.fold = args.fold
         self.flops_done = False
         self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-
+        
         print('net:', self.net)
 
         net_parameters = count_parameters(self.net)
@@ -703,7 +708,7 @@ def main():
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
-
+        args.gconv_name = 'GraphConv' 
         current_id = id
         tmp_args_dt = vars(args)
         tmp_args_dt['fold'] = 'all'
@@ -793,7 +798,7 @@ def main2():
 
         def run2(trial):
             args.trial = trial
-            args.epochs = 50
+            args.epochs = 500
            
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
@@ -804,6 +809,8 @@ def main2():
                     args.fold = fold
                     args.id = id  # do not need to pass id seperately to the latter function
                     # args.mode = 'infer'  # disable it for normal training
+                    # args.model_name = args.trial.suggest_categorical('gconv_name', [ 'GIN', 'GCN',  'GAT'])  # ,  
+                    args.gconv_name = 'GraphConv' 
                     tmp_args_dt = vars(args)
                     log_params(tmp_args_dt)
                     loss = run(args)
@@ -813,7 +820,7 @@ def main2():
         
         storage_name = "sqlite:///optuna.db"
         study = optuna.create_study(storage=storage_name)
-        study.optimize(run2, n_trials=16)
+        study.optimize(run2, n_trials=20)
         print(study.best_params)  
 
 
@@ -821,7 +828,7 @@ def main2():
 
 
 if __name__ == "__main__":
-    main2()
+    main()
 
 
 
