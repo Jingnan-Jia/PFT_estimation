@@ -727,7 +727,7 @@ def main():
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
         args.gconv_name = 'GCNConv' 
-        args.gnorm ='InstanceNorm'
+        args.gnorm ='BatchNorm'
         args.heads = 1
         args.batch_size = 32
         current_id = id
