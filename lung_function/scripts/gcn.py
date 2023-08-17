@@ -171,8 +171,8 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         hidden_channels = 32
-        args.hidden_channels = hidden_channels = 32
-        args.layers_nb = 1
+        args.hidden_channels = hidden_channels = 128
+        args.layers_nb = 4
         self.conv_layer_ls = []
 
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
