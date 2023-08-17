@@ -170,9 +170,8 @@ class GCN(torch.nn.Module):
     def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
-        hidden_channels = 32
-        args.hidden_channels = hidden_channels = 32
-        args.layers_nb = 1
+        args.hidden_channels = hidden_channels = 128
+        args.layers_nb = 2
         self.conv_layer_ls = []
 
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
@@ -726,10 +725,10 @@ def main():
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
-        args.gconv_name = 'GCNConv' 
+        args.gconv_name = 'GATConv' 
         args.gnorm ='BatchNorm'
         args.heads = 1
-        args.batch_size = 8
+        args.batch_size = 32
         current_id = id
         tmp_args_dt = vars(args)
         tmp_args_dt['fold'] = 'all'
