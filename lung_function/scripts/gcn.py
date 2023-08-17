@@ -729,7 +729,7 @@ def main():
         args.gconv_name = 'GCNConv' 
         args.gnorm ='BatchNorm'
         args.heads = 1
-        args.batch_size = 32
+        args.batch_size = 8
         current_id = id
         tmp_args_dt = vars(args)
         tmp_args_dt['fold'] = 'all'
