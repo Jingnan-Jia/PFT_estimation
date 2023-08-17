@@ -184,7 +184,7 @@ class GCN(torch.nn.Module):
         
         for idx, i in enumerate(range(args.layers_nb)):
             if args.gconv_name == 'GATConv':
-                gat_chn = int(hidden_channels *  args.heads * 2**(idx-1))
+                gat_chn = hidden_channels # int(hidden_channels *  args.heads * 2**(idx-1))
                 mid_kwargs['out_channels'] = mid_kwargs['in_channels'] = gat_chn
                 last_channels = norm_channels = int(gat_chn * args.heads)
                 # last_channels = norm_channels = hidden_channels
