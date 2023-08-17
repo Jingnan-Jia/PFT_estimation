@@ -823,7 +823,7 @@ def main2():
            
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
-                args.gconv_name = 'GATConv' 
+                args.gconv_name = 'GCNConv' 
                 args.gnorm ='BatchNorm'# args.trial.suggest_categorical('gnorm', ['BatchNorm', 'InstanceNorm', 'LayerNorm','GraphNorm',  'DiffGroupNorm'])
                 args.batch_size = 32
                 args.heads = 1 # args.trial.suggest_int('GATConv_head', 1, 5)
