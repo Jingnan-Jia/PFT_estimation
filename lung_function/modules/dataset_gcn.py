@@ -127,11 +127,11 @@ def all_loaders(args, nb=None):
                     # print(f"exist path: {dt['pcd_graph_fpath']}, load it directly")
                     with open(dt['pcd_graph_fpath'], 'rb') as f:
                         one_graph = pickle.load(f)
-                        import csv
-                        with open('/home/jjia/data/lung_function/lung_function/scripts/tmp.csv', 'a+') as f:
-                            writer = csv.writer(f)
-                            writer.writerow([one_graph.x.shape[0], one_graph.edge_index.shape[1]])
-                        print(one_graph.x.shape, one_graph.edge_index.shape)
+                        # import csv
+                        # with open('/home/jjia/data/lung_function/lung_function/scripts/tmp.csv', 'a+') as f:
+                        #     writer = csv.writer(f)
+                        #     writer.writerow([one_graph.x.shape[0], one_graph.edge_index.shape[1]])
+                        # print(one_graph.x.shape, one_graph.edge_index.shape)
                         # one_graph.pat_id = np.array([int(dt['pcd_graph_fpath'].split('SSc_patient_')[-1][:7])]) 
                         # pickle.dump(one_graph, open(dt['pcd_graph_fpath'], 'wb'))
                         # print('save data to ', dt['pcd_graph_fpath'])

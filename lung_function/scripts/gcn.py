@@ -172,7 +172,7 @@ class GCN(torch.nn.Module):
         torch.manual_seed(12345)
         hidden_channels = 32
         args.hidden_channels = hidden_channels = 128
-        args.layers_nb = 4
+        args.layers_nb = 2
         self.conv_layer_ls = []
 
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
@@ -726,7 +726,7 @@ def main():
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
-        args.gconv_name = 'GATConv' 
+        args.gconv_name = 'GCNConv' 
         args.gnorm ='InstanceNorm'
         args.heads = 1
         args.batch_size = 32
@@ -785,67 +785,67 @@ def main():
     
 
 
-def main2():
+# def main2():
 
-    SEED = 4
-    set_determinism(SEED)  # set seed for this run
+#     SEED = 4
+#     set_determinism(SEED)  # set seed for this run
 
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
-    torch.cuda.manual_seed(SEED)
+#     torch.manual_seed(SEED)
+#     torch.cuda.manual_seed_all(SEED)
+#     torch.cuda.manual_seed(SEED)
 
-    random.seed(SEED)
-    np.random.seed(SEED)
+#     random.seed(SEED)
+#     np.random.seed(SEED)
 
-    mlflow.set_tracking_uri("http://nodelogin02:5000")
-    experiment = mlflow.set_experiment("lung_fun_gcn")
+#     mlflow.set_tracking_uri("http://nodelogin02:5000")
+#     experiment = mlflow.set_experiment("lung_fun_gcn")
     
-    RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
-    # write super parameters from set_args.py to record file.
-    id = record_1st(RECORD_FPATH)
+#     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
+#     # write super parameters from set_args.py to record file.
+#     id = record_1st(RECORD_FPATH)
 
-    with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
-        args.id = id  # do not need to pass id seperately to the latter function
+#     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
+#         args.id = id  # do not need to pass id seperately to the latter function
 
-        current_id = id
-        tmp_args_dt = vars(args)
-        tmp_args_dt['fold'] = 'all'
-        log_params(tmp_args_dt)
+#         current_id = id
+#         tmp_args_dt = vars(args)
+#         tmp_args_dt['fold'] = 'all'
+#         log_params(tmp_args_dt)
 
-        all_folds_id_ls = []
-
-
+#         all_folds_id_ls = []
 
 
-        def run2(trial):
-            args.trial = trial
-            args.epochs = 50
+
+
+#         def run2(trial):
+#             args.trial = trial
+#             args.epochs = 50
            
-            for fold in [1]:
-                # write super parameters from set_args.py to record file.
-                args.gconv_name = 'GCNConv' 
-                args.gnorm ='BatchNorm'# args.trial.suggest_categorical('gnorm', ['BatchNorm', 'InstanceNorm', 'LayerNorm','GraphNorm',  'DiffGroupNorm'])
-                args.batch_size = 32
-                args.heads = 1 # args.trial.suggest_int('GATConv_head', 1, 5)
+#             for fold in [1]:
+#                 # write super parameters from set_args.py to record file.
+#                 args.gconv_name = 'GCNConv' 
+#                 args.gnorm ='BatchNorm'# args.trial.suggest_categorical('gnorm', ['BatchNorm', 'InstanceNorm', 'LayerNorm','GraphNorm',  'DiffGroupNorm'])
+#                 args.batch_size = 32
+#                 args.heads = 1 # args.trial.suggest_int('GATConv_head', 1, 5)
 
-                id = record_1st(RECORD_FPATH)
-                all_folds_id_ls.append(id)
-                with mlflow.start_run(run_name=str(id) + '_fold_' + str(fold), tags={"mlflow.note.content": f"fold: {fold}"}, nested=True):
-                    args.fold = fold
-                    args.id = id  # do not need to pass id seperately to the latter function
-                    # args.mode = 'infer'  # disable it for normal training
-                    # args.model_name = args.trial.suggest_categorical('gconv_name', [ 'GIN', 'GCN',  'GAT'])  # ,  
-                    tmp_args_dt = vars(args)
-                    log_params(tmp_args_dt)
-                    loss = run(args)
+#                 id = record_1st(RECORD_FPATH)
+#                 all_folds_id_ls.append(id)
+#                 with mlflow.start_run(run_name=str(id) + '_fold_' + str(fold), tags={"mlflow.note.content": f"fold: {fold}"}, nested=True):
+#                     args.fold = fold
+#                     args.id = id  # do not need to pass id seperately to the latter function
+#                     # args.mode = 'infer'  # disable it for normal training
+#                     # args.model_name = args.trial.suggest_categorical('gconv_name', [ 'GIN', 'GCN',  'GAT'])  # ,  
+#                     tmp_args_dt = vars(args)
+#                     log_params(tmp_args_dt)
+#                     loss = run(args)
                     
-            return loss
+#             return loss
 
         
-        storage_name = "sqlite:///optuna.db"
-        study = optuna.create_study(storage=storage_name)
-        study.optimize(run2, n_trials=1)
-        print(study.best_params)  
+#         storage_name = "sqlite:///optuna.db"
+#         study = optuna.create_study(storage=storage_name)
+#         study.optimize(run2, n_trials=1)
+#         print(study.best_params)  
 
 
 
