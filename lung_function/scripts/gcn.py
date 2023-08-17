@@ -12,7 +12,7 @@ from torch_geometric.nn import GCNConv
 from torch_geometric.data import Data, Dataset, download_url
 from torch_geometric.loader import DataLoader
 from lung_function.modules.datasets import clean_data, pat_from_json
-from torch_geometric.nn import global_mean_pool
+from torch_geometric.nn import global_mean_pool, TopKPooling, ASAPooling
 
 import networkx as nx 
 # -*- coding: utf-8 -*-
@@ -173,27 +173,45 @@ class GCN(torch.nn.Module):
         hidden_channels = 32
         args.hidden_channels = hidden_channels = 128
         args.layers_nb = 2
-
         self.conv_layer_ls = []
 
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
 
-        first_kwargs = {'in_channels': in_chn, 'out_channels': hidden_channels}
-        mid_kwargs = {'in_channels': hidden_channels, 'out_channels': hidden_channels}
-     
-            
+        first_kwargs = {'in_channels': in_chn, 'out_channels': hidden_channels, 'heads': args.heads}
+        mid_kwargs = {'in_channels': hidden_channels, 'out_channels': hidden_channels, 'heads': args.heads}
+        
+        self.GNorm = getattr(torch_geometric.nn, args.gnorm)
             
         
-        for i in range(args.layers_nb):
+        for idx, i in enumerate(range(args.layers_nb)):
+            if args.gconv_name == 'GATConv':
+                gat_chn = int(hidden_channels *  args.heads * 2**(idx-1))
+                mid_kwargs['out_channels'] = mid_kwargs['in_channels'] = gat_chn
+                last_channels = norm_channels = int(gat_chn * args.heads)
+                # last_channels = norm_channels = hidden_channels
+            else:
+                last_channels = norm_channels = hidden_channels
+            
             if i == 0:
                 self.conv_layer_ls.append(self.Gconv(**first_kwargs))
             else:
+
                 self.conv_layer_ls.append(self.Gconv(**mid_kwargs))
+                
             self.conv_layer_ls.append(nn.ReLU(inplace=True))
-            self.conv_layer_ls.append(nn.LayerNorm(hidden_channels))
+            
+
+                
+            if args.gnorm == 'DiffGroupNorm':
+                norm_layer = self.GNorm(hidden_channels, groups =10)
+            else:
+                norm_layer = self.GNorm(norm_channels)
+                self.conv_layer_ls.append(norm_layer)
+            
+
             
         self.extractor = torch.nn.Sequential(*self.conv_layer_ls)
-        self.classifier = FCNet(hidden_channels, out_chn, args)
+        self.classifier = FCNet(last_channels, out_chn, args)
         
     def forward(self, x, edge_index, batch_idx, out_feature=False):
         B = x.shape[0]
@@ -215,7 +233,6 @@ class GCN(torch.nn.Module):
 
         # 2. Readout layer
         feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
-
         # 3. Apply a final classifier
         x = self.classifier(feature)
         
@@ -328,6 +345,7 @@ class Run:
         for data_batch in self.dataloader[mode]:
             data_batch.x = data_batch.x.to(self.device)
             data_batch.edge_index = data_batch.edge_index.to(self.device)
+            
             data_batch.batch = data_batch.batch.to(self.device)
             data_batch.y = data_batch.y.to(self.device)
             
@@ -708,7 +726,10 @@ def main():
 
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
-        args.gconv_name = 'GraphConv' 
+        args.gconv_name = 'GATConv' 
+        args.gnorm ='InstanceNorm'
+        args.heads = 1
+        args.batch_size = 32
         current_id = id
         tmp_args_dt = vars(args)
         tmp_args_dt['fold'] = 'all'
@@ -798,10 +819,14 @@ def main2():
 
         def run2(trial):
             args.trial = trial
-            args.epochs = 500
+            args.epochs = 50
            
             for fold in [1]:
                 # write super parameters from set_args.py to record file.
+                args.gconv_name = 'GATConv' 
+                args.gnorm ='BatchNorm'# args.trial.suggest_categorical('gnorm', ['BatchNorm', 'InstanceNorm', 'LayerNorm','GraphNorm',  'DiffGroupNorm'])
+                args.batch_size = 32
+                args.heads = 1 # args.trial.suggest_int('GATConv_head', 1, 5)
 
                 id = record_1st(RECORD_FPATH)
                 all_folds_id_ls.append(id)
@@ -810,7 +835,6 @@ def main2():
                     args.id = id  # do not need to pass id seperately to the latter function
                     # args.mode = 'infer'  # disable it for normal training
                     # args.model_name = args.trial.suggest_categorical('gconv_name', [ 'GIN', 'GCN',  'GAT'])  # ,  
-                    args.gconv_name = 'GraphConv' 
                     tmp_args_dt = vars(args)
                     log_params(tmp_args_dt)
                     loss = run(args)
@@ -820,7 +844,7 @@ def main2():
         
         storage_name = "sqlite:///optuna.db"
         study = optuna.create_study(storage=storage_name)
-        study.optimize(run2, n_trials=20)
+        study.optimize(run2, n_trials=1)
         print(study.best_params)  
 
 
