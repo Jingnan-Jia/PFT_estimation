@@ -171,7 +171,7 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
         args.hidden_channels = hidden_channels = 128
-        args.layers_nb = 2
+        args.layers_nb = 1
         self.conv_layer_ls = []
 
         self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
@@ -182,7 +182,7 @@ class GCN(torch.nn.Module):
         self.GNorm = getattr(torch_geometric.nn, args.gnorm)
             
         
-        for idx, i in enumerate(range(args.layers_nb)):
+        for idx, i in enumerate(range(args.layers_nb)):  # this section need to be fixed!
             if args.gconv_name == 'GATConv':
                 gat_chn = hidden_channels # int(hidden_channels *  args.heads * 2**(idx-1))
                 mid_kwargs['out_channels'] = mid_kwargs['in_channels'] = gat_chn
