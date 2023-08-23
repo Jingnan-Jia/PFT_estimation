@@ -90,7 +90,7 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
 
     row_nb = 1
     col_nb = len(df_label.columns)
-    height_fig = 5
+    height_fig = 4
     length_fig = height_fig * col_nb
     # if col_nb < 10:
     fig = plt.figure(figsize=(length_fig, height_fig))  # for bland-altman plot
@@ -119,8 +119,8 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
     #     cols_names.insert(2, cols_names.pop(0))
     # else:
     #     cols_names.insert(3, cols_names.pop(1))
-    df_pred = df_pred.rename(columns={'DLCOc_SB': 'DLCOc', 'TLC_He': 'TLC'})  
-    df_label = df_label.rename(columns={'DLCOc_SB': 'DLCOc', 'TLC_He': 'TLC'})  
+    df_pred = df_pred.rename(columns={'DLCOc_SB': 'DLCO', 'FEV1': r'$\mathrm{FEV}_1$', 'TLC_He': 'TLC'})  
+    df_label = df_label.rename(columns={'DLCOc_SB': 'DLCO', 'FEV1': r'$\mathrm{FEV}_1$', 'TLC_He': 'TLC'})  
     print(df_pred.columns.tolist(),'yyaayy')
     # cols_names = df_pred.columns.tolist()
     # df_pred = df_pred[cols_names]
@@ -282,8 +282,8 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
         
         ax_2.plot([0, max_xy*1.2], [0, max_xy*1.2], '--', color = 'gray')
         
-        ax_2.set_xlim(0, max_xy*1.2)
-        ax_2.set_ylim(0, max_xy*1.2)
+        ax_2.set_xlim(0, max_xy*1.1)
+        ax_2.set_ylim(0, max_xy*1.1)
         
     #     if column in ['DLCOc', 'DLCOc_SB']:
     #         mre = 0.1

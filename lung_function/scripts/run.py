@@ -205,7 +205,7 @@ class Run:
                 # move the new initialized layers to GPU
                 self.net = self.net.to(self.device)
         if dataloader_flag:
-            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=2000)
+            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=10000)
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
                              # 'trainnoaugLossEpochBest': 1000,
@@ -480,8 +480,17 @@ def run(args: Namespace):
         for i in range(args.epochs):  # 20000 epochs
             myrun.step('train', i)
             if i % args.valid_period == 0:  # run the validation
-                myrun.step('valid',  i)
-                myrun.step('test',  i)
+                mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
+                if os.path.exists(mypath.save_label_fpath('valid')):
+                    os.remove(mypath.save_label_fpath('valid'))
+                if os.path.exists(mypath.save_label_fpath('test')):
+                    os.remove(mypath.save_label_fpath('test'))
+                if os.path.exists(mypath.save_pred_fpath('valid')):
+                    os.remove(mypath.save_pred_fpath('valid'))
+                if os.path.exists(mypath.save_pred_fpath('test')):
+                    os.remove(mypath.save_pred_fpath('test'))
+                myrun.step('valid',  i, save_pred=True)
+                myrun.step('test',  i, save_pred=True)
             if i == args.epochs - 1:  # load best model and do inference
                 print('start inference')
                 if os.path.exists(myrun.mypath.model_fpath):
@@ -502,19 +511,24 @@ def run(args: Namespace):
                 for mode in modes:
                     myrun.step(mode, i, save_pred=True)
 
-    mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-    label_ls = [mypath.save_label_fpath(mode) for mode in modes]
-    pred_ls = [mypath.save_pred_fpath(mode) for mode in modes]
+            mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
+            label_ls = [mypath.save_label_fpath(mode) for mode in ['valid', 'test']]
+            pred_ls = [mypath.save_pred_fpath(mode) for mode in ['valid', 'test']]
 
-    for pred_fpath, label_fpath in zip(pred_ls, label_ls):
-        r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-        log_params(r_p_value)
-        print('r_p_value:', r_p_value)
+            for pred_fpath, label_fpath in zip(pred_ls, label_ls):
+                r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+                # log_params(r_p_value)
+                print('r_p_value:', r_p_value)
 
-        icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-        log_params(icc_value)
-        print('icc:', icc_value)
-
+                icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+                # log_params(icc_value)
+                print('icc:', icc_value)
+                if os.path.exists(os.path.dirname(pred_fpath) + '/valid_scatter.png'):
+                    os.rename(os.path.dirname(pred_fpath) + '/valid_scatter.png', os.path.dirname(pred_fpath) + f'/valid_scatter_{i}.png')
+                    
+                if os.path.exists(os.path.dirname(pred_fpath) + '/test_scatter.png'):
+                    os.rename(os.path.dirname(pred_fpath) + '/test_scatter.png', os.path.dirname(pred_fpath) + f'/test_scatter_{i}.png')
+                    
     print('Finish all things!')
 
 
@@ -782,6 +796,7 @@ def main():
                 tmp_args_dt = vars(args)
                 log_params(tmp_args_dt)
                 run(args)
+                
         log_metrics_all_folds_average(
             all_folds_id_ls, current_id, experiment)
         
