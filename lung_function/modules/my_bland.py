@@ -145,7 +145,7 @@ def mean_diff_plot(m1, m2,
         raise ValueError('sd_limit ({}) is less than 0.'.format(sd_limit))
 
     means = np.mean([m1, m2], axis=0)
-    diffs = m1 - m2
+    diffs = abs(m1 - m2)/m2
     mean_diff = np.mean(diffs)
     std_diff = np.std(diffs)
 
@@ -176,50 +176,51 @@ def mean_diff_plot(m1, m2,
     if bland_in_1_mean_std is not None:
         mean_diff = bland_in_1_mean_std['mean']
         std_diff = bland_in_1_mean_std['std']
-    if sd_limit > 0:
-        ax.axhline(mean_diff, **mean_line_kwds)  # draw mean line.
+    # if sd_limit > 0:
+    #     ax.axhline(mean_diff, **mean_line_kwds)  # draw mean line.
 
-        half_ylim = (1.5 * sd_limit) * std_diff
-        ax.set_ylim(mean_diff - half_ylim,
-                    mean_diff + half_ylim)
-        limit_of_agreement = sd_limit * std_diff
-        lower = mean_diff - limit_of_agreement
-        upper = mean_diff + limit_of_agreement
-        for j, lim in enumerate([lower, upper]):
-            ax.axhline(lim, **limit_lines_kwds)
+    #     half_ylim = (1.5 * sd_limit) * std_diff
+    #     ax.set_ylim(mean_diff - half_ylim,
+    #                 mean_diff + half_ylim)
+    #     limit_of_agreement = sd_limit * std_diff
+    #     lower = mean_diff - limit_of_agreement
+    #     upper = mean_diff + limit_of_agreement
+    #     for j, lim in enumerate([lower, upper]):
+    #         ax.axhline(lim, **limit_lines_kwds)
 
-        # ax.axhline(md + limitOfAgreement * sd, color=loaColour, linestyle='--')
-        # ax.axhline(md - limitOfAgreement * sd, color=loaColour, linestyle='--')
-        # ax.axhline(lim, **limit_lines_kwds)
+    #     # ax.axhline(md + limitOfAgreement * sd, color=loaColour, linestyle='--')
+    #     # ax.axhline(md - limitOfAgreement * sd, color=loaColour, linestyle='--')
+    #     # ax.axhline(lim, **limit_lines_kwds)
 
-        trans = transforms.blended_transform_factory(
-            ax.transAxes, ax.transData)
+    #     trans = transforms.blended_transform_factory(
+    #         ax.transAxes, ax.transData)
 
-        limitOfAgreementRange = (mean_diff + (sd_limit * std_diff)) - (mean_diff - sd_limit * std_diff)
-        offset = (limitOfAgreementRange / 100.0) * 1.5
+    #     limitOfAgreementRange = (mean_diff + (sd_limit * std_diff)) - (mean_diff - sd_limit * std_diff)
+    #     offset = (limitOfAgreementRange / 100.0) * 1.5
 
-        ax.text(0.98, mean_diff + offset, 'Mean', ha="right", va="bottom", transform=trans, fontsize='large')
-        ax.text(0.98, mean_diff - (2*offset), f'{mean_diff:.2f}', ha="right", va="top", transform=trans, fontsize='large')
+    #     ax.text(0.98, mean_diff + offset, 'Mean', ha="right", va="bottom", transform=trans, fontsize='large')
+    #     ax.text(0.98, mean_diff - (2*offset), f'{mean_diff:.2f}', ha="right", va="top", transform=trans, fontsize='large')
 
-        ax.text(0.98, mean_diff + (sd_limit * std_diff) + offset, f'+{sd_limit:.2f} SD', ha="right", va="bottom",
-                transform=trans, fontsize='large')
-        ax.text(0.98, mean_diff + (sd_limit * std_diff) - (2*offset), f'{mean_diff + sd_limit * std_diff:.2f}', ha="right", va="top",
-                transform=trans, fontsize='large')
+    #     ax.text(0.98, mean_diff + (sd_limit * std_diff) + offset, f'+{sd_limit:.2f} SD', ha="right", va="bottom",
+    #             transform=trans, fontsize='large')
+    #     ax.text(0.98, mean_diff + (sd_limit * std_diff) - (2*offset), f'{mean_diff + sd_limit * std_diff:.2f}', ha="right", va="top",
+    #             transform=trans, fontsize='large')
 
-        ax.text(0.98, mean_diff - (sd_limit * std_diff) - (2* offset), f'-{sd_limit:.2f} SD', ha="right", va="top",
-                transform=trans, fontsize='large')
-        ax.text(0.98, mean_diff - (sd_limit * std_diff) + offset, f'{mean_diff - sd_limit * std_diff:.2f}', ha="right", va="bottom",
-                transform=trans, fontsize='large')
-        # ax.text(0.05, 0.9 * (2*half_ylim), 'A)', ha="left", fontsize='xx-large', transform=trans)
-
+    #     ax.text(0.98, mean_diff - (sd_limit * std_diff) - (2* offset), f'-{sd_limit:.2f} SD', ha="right", va="top",
+    #             transform=trans, fontsize='large')
+    #     ax.text(0.98, mean_diff - (sd_limit * std_diff) + offset, f'{mean_diff - sd_limit * std_diff:.2f}', ha="right", va="bottom",
+    #             transform=trans, fontsize='large')
+    #     # ax.text(0.05, 0.9 * (2*half_ylim), 'A)', ha="left", fontsize='xx-large', transform=trans)
+    if ynotdiff:
+        ax.set_ylim(0,2)
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
     if ynotdiff:
         ax.set_ylabel(f'Estimated {class_name}', fontsize=15)
         ax.set_xlabel(f'Measured {class_name}', fontsize=15)
     else:
-        ax.set_ylabel('Prediction - measurement', fontsize=15)
-        ax.set_xlabel('Average', fontsize=15)
+        ax.set_ylabel('Absolute percentage error', fontsize=15)
+        ax.set_xlabel('(Prediction+measurement)/2', fontsize=15)
 
     # if ynotdiff:
     #     ax.set_ylabel('L-Net (slice number)', fontsize=15)

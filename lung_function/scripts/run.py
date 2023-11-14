@@ -39,30 +39,13 @@ from lung_function.modules.loss import get_loss
 from lung_function.modules.networks import get_net_3d
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
-from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
+from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run, try_func, int2str, txtprocess
 from lung_function.modules.trans import batch_bbox2_3D
 
 args = get_args()
 global_lock = threading.Lock()
 
 
-def thread_safe(func):
-    def thread_safe_fun(*args, **kwargs):
-        with global_lock:
-            print('get lock by main thread')
-            func(*args, **kwargs)
-            print('release lock by main thread')
-    return thread_safe_fun
-
-
-def try_func(func):
-    def _try_fun(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as err:
-            print(err, file=sys.stderr)
-            pass
-    return _try_fun
 
 
 log_metric = try_func(log_metric)
@@ -80,35 +63,6 @@ def reinit_fc(net, nb_fc0, fc1_nodes, fc2_nodes, num_classes):
     return net
 
 
-def int2str(batch_id: np.ndarray) -> np.ndarray:
-    """_summary_
-
-    Args:
-        batch_id (np.ndarray): _description_
-
-    Raises:
-        Exception: _description_
-
-    Returns:
-        np.ndarray: _description_
-    """
-    tmp = batch_id.shape
-    id_str_ls = []
-    for id in batch_id:
-        if isinstance(id, np.ndarray):
-            id = id[0]
-        id = str(id)
-        while len(id) < 7:  # the pat id should be 7 digits
-            id = '0' + id
-        if len(tmp) == 2:
-            id_str_ls.append([id])
-        elif len(tmp) == 1:
-            id_str_ls.append(id)
-        else:
-            raise Exception(
-                f"the shape of batch_id is {tmp}, but it should be 1-dim or 2-dim")
-
-    return np.array(id_str_ls)
 
 
 class Run:
@@ -465,6 +419,7 @@ class Run:
                 torch.save(ckpt, self.mypath.model_fpath)
 
 
+
 @dec_record_cgpu(args.outfile)
 def run(args: Namespace):
     """
@@ -511,24 +466,25 @@ def run(args: Namespace):
                 for mode in modes:
                     myrun.step(mode, i, save_pred=True)
 
-            mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-            label_ls = [mypath.save_label_fpath(mode) for mode in ['valid', 'test']]
-            pred_ls = [mypath.save_pred_fpath(mode) for mode in ['valid', 'test']]
+        mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
+        label_ls = [mypath.save_label_fpath(mode) for mode in ['valid', 'test']]
+        pred_ls = [mypath.save_pred_fpath(mode) for mode in ['valid', 'test']]
 
-            for pred_fpath, label_fpath in zip(pred_ls, label_ls):
-                r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
-                # log_params(r_p_value)
-                print('r_p_value:', r_p_value)
+        for pred_fpath, label_fpath in zip(pred_ls, label_ls):
+            r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+            r_p_value = txtprocess(r_p_value)
+            log_params(r_p_value)
+            print('r_p_value:', r_p_value)
 
-                icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
-                # log_params(icc_value)
-                print('icc:', icc_value)
-                if os.path.exists(os.path.dirname(pred_fpath) + '/valid_scatter.png'):
-                    os.rename(os.path.dirname(pred_fpath) + '/valid_scatter.png', os.path.dirname(pred_fpath) + f'/valid_scatter_{i}.png')
-                    
-                if os.path.exists(os.path.dirname(pred_fpath) + '/test_scatter.png'):
-                    os.rename(os.path.dirname(pred_fpath) + '/test_scatter.png', os.path.dirname(pred_fpath) + f'/test_scatter_{i}.png')
-                    
+            icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+            log_params(icc_value)
+            print('icc:', icc_value)
+            if os.path.exists(os.path.dirname(pred_fpath) + '/valid_scatter.png'):
+                os.rename(os.path.dirname(pred_fpath) + '/valid_scatter.png', os.path.dirname(pred_fpath) + f'/valid_scatter_{i}.png')
+                
+            if os.path.exists(os.path.dirname(pred_fpath) + '/test_scatter.png'):
+                os.rename(os.path.dirname(pred_fpath) + '/test_scatter.png', os.path.dirname(pred_fpath) + f'/test_scatter_{i}.png')
+                
     print('Finish all things!')
 
 
@@ -745,7 +701,7 @@ def main():
     random.seed(SEED)
     np.random.seed(SEED)
 
-    mlflow.set_tracking_uri("http://nodelogin02:5000")
+    mlflow.set_tracking_uri("http://nodelogin01:5000")
     experiment = mlflow.set_experiment("lung_fun_db15")
     
     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"

@@ -278,13 +278,29 @@ def metrics(pred_fpath, label_fpath, ignore_1st_column=False, xy_same_max=True):
                   ha="left", fontsize='large', transform=ax_2.transAxes)
 
         min_xy = min(np.min(label), np.min(pred))
-        max_xy = max(np.max(label), np.max(pred))
+        max_xy = int(max(np.max(label), np.max(pred))) + 1
+        if 'DLCO' in column:
+            max_xy = 13
+        elif 'FEV' in column:
+            max_xy = 6
+        elif 'FVC' in column:
+            max_xy = 8
+        elif 'TLC' in column:
+            max_xy = 11
         
         ax_2.plot([0, max_xy*1.2], [0, max_xy*1.2], '--', color = 'gray')
         
-        ax_2.set_xlim(0, max_xy*1.1)
-        ax_2.set_ylim(0, max_xy*1.1)
+        ax_2.set_xlim(0, max_xy)
+        ax_2.set_ylim(0, max_xy)
         
+        # 生成自定义的刻度
+        step = 2 if max_xy > 8 else 1
+        ticks = list(range(0, max_xy, step))
+
+        # 设置x轴和y轴的刻度
+        # ax.set_xticks(ticks)
+        # ax.set_yticks(ticks)
+        # ax.set_ylim(0, 2)
     #     if column in ['DLCOc', 'DLCOc_SB']:
     #         mre = 0.1
     #     elif column=='FEV1':

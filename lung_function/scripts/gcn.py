@@ -62,7 +62,7 @@ from lung_function.modules.dataset_gcn import all_loaders
 from lung_function.modules.loss import get_loss
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
-from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
+from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre
 import optuna
 
 
@@ -70,73 +70,10 @@ args = get_args()
 global_lock = threading.Lock()
 
 
-def thread_safe(func):
-    def thread_safe_fun(*args, **kwargs):
-        with global_lock:
-            print('get lock by main thread')
-            func(*args, **kwargs)
-            print('release lock by main thread')
-    return thread_safe_fun
-
-
-def try_func(func):
-    def _try_fun(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as err:
-            print(err, file=sys.stderr)
-            pass
-    return _try_fun
-
-
 log_metric = try_func(log_metric)
 log_metrics = try_func(log_metrics)
 
-
-def disable_func(func):
-    def _try_fun(*args, **kwargs):
-        try:
-            pass
-        except Exception as err:
-            print(err, file=sys.stderr)
-            pass
-    return _try_fun
-
-# log_metric, log_metrics, log_param, log_params = map(disable_func, (log_metric, log_metrics, log_param, log_params))
     
-    
-def int2str(batch_id: np.ndarray) -> np.ndarray:
-    """_summary_
-
-    Args:
-        batch_id (np.ndarray): _description_
-
-    Raises:
-        Exception: _description_
-
-    Returns:
-        np.ndarray: _description_
-    """
-    tmp = batch_id.shape
-    id_str_ls = []
-    for id in batch_id:
-        if isinstance(id, np.ndarray):
-            id = id[0]
-        id = str(id)
-        while len(id) < 7:  # the pat id should be 7 digits
-            id = '0' + id
-        if len(tmp) == 2:
-            id_str_ls.append([id])
-        elif len(tmp) == 1:
-            id_str_ls.append(id)
-        else:
-            raise Exception(
-                f"the shape of batch_id is {tmp}, but it should be 1-dim or 2-dim")
-
-    return np.array(id_str_ls)
-
-
-
 class FCNet(nn.Module):
     def __init__(self, in_chn, out_chn, args):
         super().__init__()
@@ -624,84 +561,6 @@ def ensemble_4folds_validation(fold_ex_dt_ls):
         df_pred_valid.to_csv(pred_all_fpath)
         df_label_valid.to_csv(label_all_fpath)
         print(pred_all_fpath)
-
-def mae(pred_fpath, label_fpath, ignore_1st_column=True):
-    mae_dict = {}
-
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-    if 'ID' == label.columns[0]:
-        del label["ID"]
-    if 'ID' == pred.columns[0]:
-        del pred["ID"]
-
-    original_columns = label.columns
-
-    # ori_columns = list(label.columns)
-
-    for column in original_columns:
-        abs_err = (pred[column] - label[column]).abs()
-        mae_value = abs_err.mean().round(2)
-        std_value = abs_err.std().round(2)
-        
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        mae_dict['mae_' + prefix + '_' + column] = mae_value
-        mae_dict['mae_std_' + prefix + '_' + column] = std_value
-
-    return mae_dict
-
-def me(pred_fpath, label_fpath, ignore_1st_column=True):
-    mae_dict = {}
-
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-    if 'ID' == label.columns[0]:
-        del label["ID"]
-    if 'ID' == pred.columns[0]:
-        del pred["ID"]
-
-    original_columns = label.columns
-
-    for column in original_columns:
-        abs_err = (pred[column] - label[column])
-        mae_value = abs_err.mean().round(2)
-        std_value = abs_err.std().round(2)
-        
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        mae_dict['me_' + prefix + '_' + column] = mae_value
-        mae_dict['me_std_' + prefix + '_' + column] = std_value
-
-    return mae_dict
-
-def mre(pred_fpath, label_fpath, ignore_1st_column=True):
-    label = pd.read_csv(label_fpath)
-    pred = pd.read_csv(pred_fpath)
-    
-    if ignore_1st_column:
-        pred = pred.iloc[: , 1:]
-        label = label.iloc[: , 1:]
-
-    rel_err_dict = {}
-    for column in label.columns:
-        mae_value = (pred[column] - label[column]).abs()
-        rel_err = mae_value / label[column]
-        # print(f'relative error for {column}:')
-        # for i in rel_err:
-        #     if i > 2:
-        #         print(i)
-        mean_rel_err = rel_err.mean().round(2)
-        mean_rel_err_std = rel_err.std().round(2)
-        prefix = label_fpath.split("/")[-1].split("_")[0]
-        rel_err_dict['mre_' + prefix + '_' + column] = mean_rel_err
-        rel_err_dict['mre_std_' + prefix + '_' + column] = mean_rel_err_std
-       
-    return rel_err_dict
 
         
 def main():

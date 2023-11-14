@@ -124,12 +124,12 @@ def get_args(jupyter=False):
     parser.add_argument('--fold', choices=(1, 2, 3, 4),
                         help='1 to 4', type=int, default=1)
     parser.add_argument(
-        '--valid_period', help='how many epochs between 2 validation', type=int, default=1)
+        '--valid_period', help='how many epochs between 2 validation', type=int, default=5)
     parser.add_argument('--loss', choices=('mse', 'mae', 'smooth_mae', 'mse+mae', 'msehigher', 'mse_regular'), help='mode', type=str,
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=20)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=100)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.0001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
@@ -144,7 +144,7 @@ def get_args(jupyter=False):
         '--outfile', help='output file when running by script instead of pycharm', type=str)
     parser.add_argument('--hostname', help='hostname of the server', type=str)
     parser.add_argument('--remark', help='comments on this experiment',
-                        type=str, default='decrease radius by 0.5mm to 5 mm')
+                        type=str, default='verify network design ex')
     parser.add_argument('--jobid', help='slurm job_id', type=int, default=0)
     # For jupyter notebooks
     if jupyter:

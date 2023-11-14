@@ -104,7 +104,7 @@ def main():
     # update parameters
     AttentionMethod = "GradCAM"  # or others
     Ex_id = 2664  # 2522 vgg 4-out, 2601 for vgg, 2657 for x3d_m FEV, 2666 for x3d_m of four outputs.
-    for Ex_id in [2535]:  # 2543, 2541, 2539, 2537, 2535  2751, 2664, 2657, 2658, 2662
+    for Ex_id in [2543, 2541, 2539, 2537, 2535,  2751]:  # 2543, 2541, 2539, 2537, 2535,  2751, 2664, 2657, 2658, 2662
         max_img_nb = 80
         mode = 'valid'
         
@@ -152,8 +152,6 @@ def main():
 
 
         for data in dataloader:
-
-
                 
             batch_pat_id = data['pat_id'].detach().numpy()
             batch_x = data[args.input_mode][:,:,:,:,:]  # ct  ct_masked_by_torso
@@ -184,6 +182,14 @@ def main():
 
                 ct_fpath = f"{myrun.mypath.id_dir}/cam/SSc_patient_{pat_id[0]}.mha"
                 save_itk(ct_fpath, image[0].detach().numpy(), np.float64(ori), np.float64(sp), dtype='float')
+                
+                mask_fpath = ct_fpath.replace('.mha', '_mask.mha')
+                if args.input_mode in ('ct_masked_by_lung', 'ct_masked_by_right_lung', 'ct_masked_by_left_lung'):
+                    mask_np = data['lung_mask'].detach().numpy()[0][0]
+                elif args.input_mode in ('vessel', 'ct_masked_by_vessel'):
+                    vessel_mask = load_itk(ct_fpath.replace('.nii.gz', '_GcVessel.nii.gz'), require_ori_sp=False) 
+                    mask_np = vessel_mask
+                save_itk(mask_fpath, mask_np, np.float64(ori), np.float64(sp))  # save lung mask
 
                 img = image[None].to(device)
 
@@ -192,6 +198,8 @@ def main():
                     cam = GradCAM(model=myrun.net, target_layers=target_layers, use_cuda=args.use_cuda)
                         
                     grayscale_cam, output_value = cam(input_tensor=img, targets=targets)  # shape: 1, z, y, x
+                    
+                    
                     # print(cam_fpath)
                     # print(output_value)
                     # print(idx)
