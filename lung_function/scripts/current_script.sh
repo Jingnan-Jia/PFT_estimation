@@ -72,7 +72,7 @@ conda activate py38
 
 
 # shellcheck disable=SC2046
-idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --epochs=5 --remark="verify network design of x3d is not changed"
+idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --epochs=1 --remark="verify network design of x3d is not changed"
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --pretrained_ct='ct' --remark="combined_run,negtive add cos_loss "
 # idx=1; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --net='x3d_m' --pretrained_imgnet=True --batch_size=1 --input_mode="ct_masked_by_lung" --epochs=100 --target='TLC_He' --remark="1 outputs, from pretraining" &
 # wait

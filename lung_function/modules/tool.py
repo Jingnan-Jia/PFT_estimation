@@ -594,7 +594,6 @@ def record_cgpu_info(outfile) -> Tuple:
                 # res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 # gpu_util += res.gpu
                 # q_gpu_util.put(res.gpu)
-                        for i in range(5):
                 try:
                     res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 except pynvml.NVMLError_NotSupported:
