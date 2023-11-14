@@ -601,8 +601,6 @@ def record_cgpu_info(outfile) -> Tuple:
                     print("GPU utilization feature not supported.")
                     res = 0  # or some default value
                 
-            gpu_util = gpu_util / 5
-
                 info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
                 # gpu_mem_used = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total))
                 gpu_mem_used = _bytes_to_megabytes(info.used)
