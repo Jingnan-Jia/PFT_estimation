@@ -699,6 +699,8 @@ def main():
             
             # add r
             r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+            r_p_value = txtprocess(r_p_value)
+
             r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
             log_params(r_p_value_ensemble)
 

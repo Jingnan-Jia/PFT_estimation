@@ -428,56 +428,56 @@ def record_mem_info() -> int:
     return int(memusage.strip())
 
 
-def record_gpu_info(outfile) -> Tuple:
-    """Record GPU information to `outfile`.
+# def record_gpu_info(outfile) -> Tuple:
+#     """Record GPU information to `outfile`.
 
-    Args:
-        outfile: The format of `outfile` is: slurm-[JOB_ID].out
+#     Args:
+#         outfile: The format of `outfile` is: slurm-[JOB_ID].out
 
-    Returns:
-        gpu_name, gpu_usage, gpu_util
+#     Returns:
+#         gpu_name, gpu_usage, gpu_util
 
-    Examples:
+#     Examples:
 
-        >>> record_gpu_info('slurm-98234.out')
+#         >>> record_gpu_info('slurm-98234.out')
 
-        or
+#         or
 
-        :func:`lung_function.run.gpu_info` and :func:`lung_function.run_pos.gpu_info`
+#         :func:`lung_function.run.gpu_info` and :func:`lung_function.run_pos.gpu_info`
 
-    """
+#     """
 
-    if outfile:
-        jobid_gpuid = outfile.split('-')[-1]
-        tmp_split = jobid_gpuid.split('_')[-1]
-        if len(tmp_split) == 2:
-            gpuid = tmp_split[-1]
-        else:
-            gpuid = 0
-        nvidia_smi.nvmlInit()
-        handle = nvidia_smi.nvmlDeviceGetHandleByIndex(gpuid)
-        gpuname = nvidia_smi.nvmlDeviceGetName(handle)
-        gpuname = gpuname.decode("utf-8")
-        # log_dict['gpuname'] = gpuname
-        info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
-        gpu_mem_usage = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total)) + ' MB'
-        # log_dict['gpu_mem_usage'] = gpu_mem_usage
-        gpu_util = 0
-        for i in range(5):
-            try:
-                res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
-            except pynvml.NVMLError_NotSupported:
-                # Handle the exception, e.g., by logging and continuing
-                print("GPU utilization feature not supported.")
-                res = 0  # or some default value
-            gpu_util += res.gpu
-            time.sleep(1)
-        gpu_util = gpu_util / 5
-        # log_dict['gpu_util'] = str(gpu_util) + '%'
-        return gpuname, gpu_mem_usage, str(gpu_util) + '%'
-    else:
-        print('outfile is None, can not show GPU memory info')
-        return None, None, None
+#     if outfile:
+#         jobid_gpuid = outfile.split('-')[-1]
+#         tmp_split = jobid_gpuid.split('_')[-1]
+#         if len(tmp_split) == 2:
+#             gpuid = tmp_split[-1]
+#         else:
+#             gpuid = 0
+#         nvidia_smi.nvmlInit()
+#         handle = nvidia_smi.nvmlDeviceGetHandleByIndex(gpuid)
+#         gpuname = nvidia_smi.nvmlDeviceGetName(handle)
+#         gpuname = gpuname.decode("utf-8")
+#         # log_dict['gpuname'] = gpuname
+#         info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+#         gpu_mem_usage = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total)) + ' MB'
+#         # log_dict['gpu_mem_usage'] = gpu_mem_usage
+#         gpu_util = 0
+#         for i in range(5):
+#             try:
+#                 res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+#             except pynvml.NVMLError_NotSupported:
+#                 # Handle the exception, e.g., by logging and continuing
+#                 print("GPU utilization feature not supported.")
+#                 res = 0  # or some default value
+#             gpu_util += res.gpu
+#             time.sleep(1)
+#         gpu_util = gpu_util / 5
+#         # log_dict['gpu_util'] = str(gpu_util) + '%'
+#         return gpuname, gpu_mem_usage, str(gpu_util) + '%'
+#     else:
+#         print('outfile is None, can not show GPU memory info')
+#         return None, None, None
 
 # def log_metrics_for_cgpu():
 #     t0 = time.time()
@@ -591,9 +591,18 @@ def record_cgpu_info(outfile) -> Tuple:
                 cpu_mem_used = psutil.virtual_memory().percent
                 # q_cpu_mem_percent.put(cpu_mem_used)
 
-                res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+                # res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 # gpu_util += res.gpu
                 # q_gpu_util.put(res.gpu)
+                        for i in range(5):
+                try:
+                    res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+                except pynvml.NVMLError_NotSupported:
+                    # Handle the exception, e.g., by logging and continuing
+                    print("GPU utilization feature not supported.")
+                    res = 0  # or some default value
+                
+            gpu_util = gpu_util / 5
 
                 info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
                 # gpu_mem_used = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total))
