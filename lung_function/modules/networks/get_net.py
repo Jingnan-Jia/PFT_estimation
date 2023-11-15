@@ -222,7 +222,7 @@ def get_net_3d(name: str,
                 net.blocks[-1].proj = nn.Linear(in_features=2048, out_features=nb_cls, bias=True)
             
         else:          
-            net = torch.hub.load( 'facebookresearch/pytorchvideo', name, pretrained=pretrained, head_activation=None, head_output_with_global_average=False)
+            net = torch.hub.load( 'facebookresearch/pytorchvideo', name, pretrained=pretrained, head_activation=None, head_output_with_global_average=True)
             modify_stride_inplace(net)
             
             net.blocks[0].conv.conv_t = nn.Conv3d(1, 24, kernel_size=( 3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1), bias=False)
