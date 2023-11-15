@@ -197,7 +197,7 @@ def get_net_3d(name: str,
             net = torch.hub.load( 'facebookresearch/pytorchvideo', name, pretrained=pretrained, head_activation=None, head_output_with_global_average=False)
             net.blocks[0].conv.conv_t = nn.Conv3d(1, 24, kernel_size=( 1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1), bias=False)
 
-            # net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
+            net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
             # net.blocks[-1].pool.post_conv = nn.Conv3d(432, 2048, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
             # net.blocks[-1].pool.post_conv = nn.Sequential(nn.Flatten(1),nn.Linear(in_features=432, out_features=2048, bias=True))
             
