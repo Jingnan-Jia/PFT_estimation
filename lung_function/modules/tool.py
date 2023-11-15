@@ -596,7 +596,7 @@ def record_cgpu_info(outfile) -> Tuple:
                 # q_gpu_util.put(res.gpu)
                 try:
                     res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
-                except pynvml.NVMLError_NotSupported:
+                except:
                     # Handle the exception, e.g., by logging and continuing
                     print("GPU utilization feature not supported.")
                     res = 0  # or some default value
