@@ -156,7 +156,7 @@ class Run:
                 # move the new initialized layers to GPU
                 self.net = self.net.to(self.device)
         if dataloader_flag:
-            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=20000)
+            self.data_dt = all_loaders(self.mypath.data_dir, self.mypath.label_fpath, args, nb=1000)
 
         self.BestMetricDt = {'trainLossEpochBest': 1000,
                              # 'trainnoaugLossEpochBest': 1000,
@@ -315,6 +315,7 @@ class Run:
                         pred, trans_feat = self.net(batch_x)
                     else:
                         pred = self.net(batch_x)
+                print('pred',pred )
                 if save_pred:
                     head = ['pat_id']
                     head.extend(self.target)
