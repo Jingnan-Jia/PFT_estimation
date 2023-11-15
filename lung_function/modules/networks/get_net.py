@@ -203,7 +203,7 @@ def get_net_3d(name: str,
             
             net.blocks[-1].proj = nn.Linear(in_features=2048, out_features=nb_cls, bias=True)  # only command previously
             
-            # net.blocks[-1].output_pool = nn.AdaptiveAvgPool3d(1)
+            net.blocks[-1].output_pool = nn.AdaptiveAvgPool3d(1)
             # del net.blocks[-1].activation
             # net.blocks[-1].activation = nn.ReLU()
                 
