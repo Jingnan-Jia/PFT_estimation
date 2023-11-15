@@ -609,7 +609,7 @@ def record_cgpu_info(outfile) -> Tuple:
                       'cpu_mem_used_GB_in_process_vms': memoryUse2,
                       'cpu_util_used_percent': cpu_percent,
                       'cpu_mem_used_percent': cpu_mem_used,
-                      "gpu_util": res.gpu,
+                      "gpu_util": res.gpu if res != 0 else 0,
                       'gpu_mem_used_MB': gpu_mem_used}
                 # try:
                     # with lock:
