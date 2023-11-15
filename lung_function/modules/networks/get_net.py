@@ -60,6 +60,32 @@ class MLP_reg(nn.Module):
         return x
 
 
+def modify_stride_inplace(net, old_stride=(1,2,2), new_stride=(2,2,2)):
+    for name, module in net.named_children():
+        # 检查是否是卷积层以及步长是否匹配
+        if isinstance(module, nn.Conv3d) and module.stride == old_stride:
+            # 创建一个具有相同参数但不同步长的新卷积层
+            new_module = nn.Conv3d(
+                in_channels=module.in_channels, 
+                out_channels=module.out_channels, 
+                kernel_size=module.kernel_size, 
+                stride=new_stride, 
+                padding=module.padding, 
+                dilation=module.dilation, 
+                groups=module.groups, 
+                bias=(module.bias is not None)
+            )
+            # 复制权重和偏置
+            new_module.weight = module.weight
+            new_module.bias = module.bias
+
+            # 用新的卷积层替换原有层
+            setattr(net, name, new_module)
+        else:
+            # 递归处理子模块
+            modify_stride_inplace(module, old_stride, new_stride)
+
+
 def get_net_3d(name: str,
                nb_cls: int,
                fc1_nodes=1024, 
@@ -197,15 +223,18 @@ def get_net_3d(name: str,
             
         else:          
             net = torch.hub.load( 'facebookresearch/pytorchvideo', name, pretrained=pretrained, head_activation=None, head_output_with_global_average=False)
-            net.blocks[0].conv.conv_t = nn.Conv3d(1, 24, kernel_size=( 1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1), bias=False)
+            modify_stride_inplace(net)
+            
+            net.blocks[0].conv.conv_t = nn.Conv3d(1, 24, kernel_size=( 3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1), bias=False)
 
-            net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
-            net.blocks[-1].pool.post_conv = nn.Conv3d(432, 8192, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
+            # net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
+            net.blocks[-1].pool.pool = nn.AvgPool3d(kernel_size=(7, 7, 7), stride=1, padding=0)  # change from 16, 7, 7 to 7, 7, 7
+            # net.blocks[-1].pool.post_conv = nn.Conv3d(432, 8192, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
             # net.blocks[-1].pool.post_conv = nn.Sequential(nn.Flatten(1),nn.Linear(in_features=432, out_features=8192, bias=True))
             # net.blocks[-1].dropout = nn.Dropout(0)
-            net.blocks[-1].proj = nn.Linear(in_features=8192, out_features=nb_cls, bias=True)  # only command previously
+            net.blocks[-1].proj = nn.Linear(in_features=2048, out_features=nb_cls, bias=True)  # only command previously
             
-            net.blocks[-1].output_pool = nn.AdaptiveAvgPool3d(1)
+            # net.blocks[-1].output_pool = nn.AdaptiveAvgPool3d(1)
             # del net.blocks[-1].activation
             # net.blocks[-1].activation = nn.ReLU()
                 
