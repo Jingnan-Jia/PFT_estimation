@@ -63,7 +63,7 @@ def get_args(jupyter=False):
         'IntrA_cls'),
         type=str, default='ct')
     parser.add_argument('--target', help='target prediction', type=str,
-                        default='FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
+                        default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
         '--workers', help='number of workers for dataloader', type=int, default=6)
 
@@ -106,7 +106,7 @@ def get_args(jupyter=False):
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=500)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=100)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
                         default=0.001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
