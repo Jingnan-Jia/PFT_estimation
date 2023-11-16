@@ -159,8 +159,16 @@ class SampleShuffled(MapTransform, RandomizableTransform):
             #     choice = np.random.choice(len(data[key]), self.PNB, replace=True)
             #     data[key] = data[key][choice, :]
             # else:             
-            choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
-            data[key] = data[key][choice]  # sample data
+            big_nb = 1000
+            big_vessels = data[key][:big_nb]  # first 1 k points is enough to represent the big vessels
+            choice = np.random.choice(len(data[key][big_nb:]), self.PNB-big_nb, replace=self.repeated_sample)
+            others = data[key][choice]
+            all =  np.concatenate((big_vessels, others), axis=0)
+            np.random.shuffle(all)
+            data[key] = all
+            
+            # choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
+            # data[key] = data[key][choice]  # sample data
 
             # if self.sub_shuffle:  # shuffle the sub data
             #     np.random.shuffle(data[key])    # shuffle data inplace
