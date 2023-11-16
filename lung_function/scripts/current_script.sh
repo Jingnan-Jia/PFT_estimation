@@ -9,6 +9,9 @@
 ##SBATCH --mail-type=end
 ##SBATCH --mail-user=jiajingnan2222@gmail.com
 
+module load Miniconda3
+module load git
+
 
 eval "$(conda shell.bash hook)"
 
