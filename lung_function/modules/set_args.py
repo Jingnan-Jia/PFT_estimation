@@ -82,9 +82,19 @@ def get_args(jupyter=False):
                         type=float, default=1.5)
 
     # for point cloud data
+    # parser.add_argument('--dataset', help='dataset name', choices=('modelnet40', 'vessel_pcd', 'ct', 'lung_mask_pcd'), type=str, default='lung_mask_pcd')
+    parser.add_argument('--set_all_r_to_1', help='set all r values to 1 to avoid the influence of R', type=boolean_string, default='False')
+    parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
+    parser.add_argument('--in_channel', help='add_neighbors information', type=int, default=4)
+    parser.add_argument('--scale_r', help='scale_r', type=int, default=100)
+
+
+    parser.add_argument('--scale_range', help='scale range', type=str, default='0')  # 0.5-1.5
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
-    parser.add_argument('--PNB', help='points number for each image', type=int, default=56000)
+    parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
     parser.add_argument('--FPS_input', help='Fartest point sample input', type=boolean_string, default='False')
+    parser.add_argument('--use_normals_only1', help='use_normals_only1 to be comparible with vessel radius', type=boolean_string, default='True')
+
     parser.add_argument('--repeated_sample', help='if apply repeated sampling to get PNB points?', type=boolean_string, default='False')
     parser.add_argument('--position_center_norm', help='if use the relative coordinates: center point is 0,0,0', type=boolean_string, default='True')
 
@@ -97,7 +107,19 @@ def get_args(jupyter=False):
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
                         type=boolean_string, default='True')
-    parser.add_argument('--total_folds', choices=(4, 5),
+    
+    # for combined net
+    parser.add_argument('--pretrained_ct', help='pretrained from pervioius CT or videos', choices=('ct', 'videos'),
+                        type=str, default='ct')
+    parser.add_argument('--pretrained_pcd', help='pretrained from pervioius pcd experiments', choices=('vessel_skeleton_pcd'),
+                        type=str, default='vessel_skeleton_pcd')
+    parser.add_argument('--freeze_encoder', help='freeze encoder', type=boolean_string, default=False)
+    parser.add_argument('--combined_by_add', help='combined_by_add', type=boolean_string, default=True)
+    parser.add_argument('--combined_by_pool', help='combined_by_add', type=boolean_string, default=True)
+
+    
+    
+    parser.add_argument('--total_folds', choices=(1, 4, 5),
                         help='4-fold training', type=int, default=4)
     parser.add_argument('--fold', choices=(1, 2, 3, 4),
                         help='1 to 4', type=int, default=1)
@@ -134,7 +156,22 @@ def get_args(jupyter=False):
 
     if args.x_size == 0 or args.y_size == 0:
         raise Exception("0 x_size or y_size: ")
-
+    if args.net == 'mlp_reg':
+        args.set_all_xyz_to_1 = True
+    if args.input_mode == 'vessel_skeleton_pcd':
+        args.ct_sp = 'ori'
+        # args.batch_size = 5
+    elif args.input_mode == 'lung_mask_pcd':
+        args.ct_sp = '1.5'
+        args.PNB = 28000
+        args.batch_size = 5
+    elif args.input_mode == 'modelnet40_pcd':
+        args.target = '-'*39  # it.split('-') =40
+        args.loss = 'ce'
+        args.total_folds = 1
+        args.batch_size = 20
+    else:
+        pass
     return args
 
 
