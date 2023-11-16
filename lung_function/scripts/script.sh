@@ -13,7 +13,7 @@ module load Miniconda3
 module load git
 
 
-eval "$(conda shell.bash hook)"
+# eval "$(conda shell.bash hook)"
 
 conda activate py38
 
