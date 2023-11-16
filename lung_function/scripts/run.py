@@ -154,6 +154,8 @@ class Run:
                 print(f"pretrained_model_path: {pretrained_model_path}")
                 ckpt = torch.load(pretrained_model_path,
                                   map_location=self.device)
+                print(f"model is loaded arom {pretrained_model_path}")
+
                 del ckpt['ln3.weight']
                 del ckpt['ln3.bias']
                 del self.net.ln3  # remove the last layer because they do not match
@@ -169,7 +171,7 @@ class Run:
             else:
                 if '-' in args.pretrained_id:
                     pretrained_ids = args.pretrained_id.split('-')
-                    args.pretrained_id = pretrained_ids[fold]
+                    args.pretrained_id = pretrained_ids[self.fold-1]
 
                 pretrained_path = PFTPath(
                     args.pretrained_id, check_id_dir=False, space=args.ct_sp)
