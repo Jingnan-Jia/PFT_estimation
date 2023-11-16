@@ -31,7 +31,9 @@ class get_model(nn.Module):
         # self.relu = nn.ReLU()
         self.loss = loss
 
-    def forward(self, x):
+    def forward(self, x):  # x shape: (B,3+1, N)
+        # x = x.permute(0, 2, 1) # b, d, n	
+
         x, trans, trans_feat = self.feat(x)
         if self.dp_fc1_flag:
             x = F.relu(self.bn1(self.dp_fc1(self.fc1(x))))
@@ -62,3 +64,12 @@ class get_loss(torch.nn.Module):
 
         total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
         return total_loss
+    
+    
+if __name__ == '__main__':
+
+    data = torch.rand(2, 4, 1024 )
+    print("===> testing pointMLP ...")
+    model = get_model(pointnet_fc_ls=[1024, 512, 256], loss='mse', dp_fc1_flag=True)
+    out = model(data)
+    print(out.shape)
