@@ -71,8 +71,6 @@ ENDSSH
 
 echo "Hello, I am back in $(hostname) to run the code"
 
-conda init bash
-
 
 conda activate py38
 
