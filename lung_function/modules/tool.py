@@ -52,6 +52,127 @@ log_metric = try_func(log_metric)
 log_metrics = try_func(log_metrics)
 
 
+
+def mae(pred_fpath, label_fpath, ignore_1st_column=True):
+    mae_dict = {}
+
+    label = pd.read_csv(label_fpath)
+    pred = pd.read_csv(pred_fpath)
+    if ignore_1st_column:
+        pred = pred.iloc[: , 1:]
+        label = label.iloc[: , 1:]
+    if 'ID' == label.columns[0]:
+        del label["ID"]
+    if 'ID' == pred.columns[0]:
+        del pred["ID"]
+
+    original_columns = label.columns
+
+    # ori_columns = list(label.columns)
+
+    for column in original_columns:
+        abs_err = (pred[column] - label[column]).abs()
+        mae_value = abs_err.mean().round(2)
+        std_value = abs_err.std().round(2)
+        
+        prefix = label_fpath.split("/")[-1].split("_")[0]
+        mae_dict['mae_' + prefix + '_' + column] = mae_value
+        mae_dict['mae_std_' + prefix + '_' + column] = std_value
+
+    return mae_dict
+
+def me(pred_fpath, label_fpath, ignore_1st_column=True):
+    mae_dict = {}
+
+    label = pd.read_csv(label_fpath)
+    pred = pd.read_csv(pred_fpath)
+    if ignore_1st_column:
+        pred = pred.iloc[: , 1:]
+        label = label.iloc[: , 1:]
+    if 'ID' == label.columns[0]:
+        del label["ID"]
+    if 'ID' == pred.columns[0]:
+        del pred["ID"]
+
+    original_columns = label.columns
+
+    for column in original_columns:
+        abs_err = (pred[column] - label[column])
+        mae_value = abs_err.mean().round(2)
+        std_value = abs_err.std().round(2)
+        
+        prefix = label_fpath.split("/")[-1].split("_")[0]
+        mae_dict['me_' + prefix + '_' + column] = mae_value
+        mae_dict['me_std_' + prefix + '_' + column] = std_value
+
+    return mae_dict
+
+def mre(pred_fpath, label_fpath, ignore_1st_column=True):
+    label = pd.read_csv(label_fpath)
+    pred = pd.read_csv(pred_fpath)
+    
+    if ignore_1st_column:
+        pred = pred.iloc[: , 1:]
+        label = label.iloc[: , 1:]
+
+    rel_err_dict = {}
+    for column in label.columns:
+        mae_value = (pred[column] - label[column]).abs()
+        rel_err = mae_value / label[column]
+        # print(f'relative error for {column}:')
+        # for i in rel_err:
+        #     if i > 2:
+        #         print(i)
+        mean_rel_err = rel_err.mean().round(2)
+        mean_rel_err_std = rel_err.std().round(2)
+        prefix = label_fpath.split("/")[-1].split("_")[0]
+        rel_err_dict['mre_' + prefix + '_' + column] = mean_rel_err
+        rel_err_dict['mre_std_' + prefix + '_' + column] = mean_rel_err_std
+       
+    return rel_err_dict
+
+
+
+def txtprocess(dt):
+    new_dt = {}
+    for k, v in dt.items():
+        if "$\mathrm{FEV}_1$" in k:
+            k = k.replace("$\mathrm{FEV}_1$", "FEV1")
+        new_dt[k] = v
+    return new_dt
+
+
+def int2str(batch_id: np.ndarray) -> np.ndarray:
+    """_summary_
+
+    Args:
+        batch_id (np.ndarray): _description_
+
+    Raises:
+        Exception: _description_
+
+    Returns:
+        np.ndarray: _description_
+    """
+    tmp = batch_id.shape
+    id_str_ls = []
+    for id in batch_id:
+        if isinstance(id, np.ndarray):
+            id = id[0]
+        id = str(id)
+        while len(id) < 7:  # the pat id should be 7 digits
+            id = '0' + id
+        if len(tmp) == 2:
+            id_str_ls.append([id])
+        elif len(tmp) == 1:
+            id_str_ls.append(id)
+        else:
+            raise Exception(
+                f"the shape of batch_id is {tmp}, but it should be 1-dim or 2-dim")
+
+    return np.array(id_str_ls)
+
+
 def retrive_run(experiment, reload_id):
     # using reload_id to retrive the mlflow run
     client = MlflowClient()
@@ -307,51 +428,56 @@ def record_mem_info() -> int:
     return int(memusage.strip())
 
 
-def record_gpu_info(outfile) -> Tuple:
-    """Record GPU information to `outfile`.
+# def record_gpu_info(outfile) -> Tuple:
+#     """Record GPU information to `outfile`.
 
-    Args:
-        outfile: The format of `outfile` is: slurm-[JOB_ID].out
+#     Args:
+#         outfile: The format of `outfile` is: slurm-[JOB_ID].out
 
-    Returns:
-        gpu_name, gpu_usage, gpu_util
+#     Returns:
+#         gpu_name, gpu_usage, gpu_util
 
-    Examples:
+#     Examples:
 
-        >>> record_gpu_info('slurm-98234.out')
+#         >>> record_gpu_info('slurm-98234.out')
 
-        or
+#         or
 
-        :func:`lung_function.run.gpu_info` and :func:`lung_function.run_pos.gpu_info`
+#         :func:`lung_function.run.gpu_info` and :func:`lung_function.run_pos.gpu_info`
 
-    """
+#     """
 
-    if outfile:
-        jobid_gpuid = outfile.split('-')[-1]
-        tmp_split = jobid_gpuid.split('_')[-1]
-        if len(tmp_split) == 2:
-            gpuid = tmp_split[-1]
-        else:
-            gpuid = 0
-        nvidia_smi.nvmlInit()
-        handle = nvidia_smi.nvmlDeviceGetHandleByIndex(gpuid)
-        gpuname = nvidia_smi.nvmlDeviceGetName(handle)
-        gpuname = gpuname.decode("utf-8")
-        # log_dict['gpuname'] = gpuname
-        info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
-        gpu_mem_usage = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total)) + ' MB'
-        # log_dict['gpu_mem_usage'] = gpu_mem_usage
-        gpu_util = 0
-        for i in range(5):
-            res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
-            gpu_util += res.gpu
-            time.sleep(1)
-        gpu_util = gpu_util / 5
-        # log_dict['gpu_util'] = str(gpu_util) + '%'
-        return gpuname, gpu_mem_usage, str(gpu_util) + '%'
-    else:
-        print('outfile is None, can not show GPU memory info')
-        return None, None, None
+#     if outfile:
+#         jobid_gpuid = outfile.split('-')[-1]
+#         tmp_split = jobid_gpuid.split('_')[-1]
+#         if len(tmp_split) == 2:
+#             gpuid = tmp_split[-1]
+#         else:
+#             gpuid = 0
+#         nvidia_smi.nvmlInit()
+#         handle = nvidia_smi.nvmlDeviceGetHandleByIndex(gpuid)
+#         gpuname = nvidia_smi.nvmlDeviceGetName(handle)
+#         gpuname = gpuname.decode("utf-8")
+#         # log_dict['gpuname'] = gpuname
+#         info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+#         gpu_mem_usage = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total)) + ' MB'
+#         # log_dict['gpu_mem_usage'] = gpu_mem_usage
+#         gpu_util = 0
+#         for i in range(5):
+#             try:
+#                 res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+#             except pynvml.NVMLError_NotSupported:
+#                 # Handle the exception, e.g., by logging and continuing
+#                 print("GPU utilization feature not supported.")
+#                 res = 0  # or some default value
+#             gpu_util += res.gpu
+#             time.sleep(1)
+#         gpu_util = gpu_util / 5
+#         # log_dict['gpu_util'] = str(gpu_util) + '%'
+#         return gpuname, gpu_mem_usage, str(gpu_util) + '%'
+#     else:
+#         print('outfile is None, can not show GPU memory info')
+#         return None, None, None
 
 # def log_metrics_for_cgpu():
 #     t0 = time.time()
@@ -465,10 +591,16 @@ def record_cgpu_info(outfile) -> Tuple:
                 cpu_mem_used = psutil.virtual_memory().percent
                 # q_cpu_mem_percent.put(cpu_mem_used)
 
-                res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+                # res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 # gpu_util += res.gpu
                 # q_gpu_util.put(res.gpu)
-
+                try:
+                    res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
+                except:
+                    # Handle the exception, e.g., by logging and continuing
+                    print("GPU utilization feature not supported.")
+                    res = 0  # or some default value
+                
                 info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
                 # gpu_mem_used = str(_bytes_to_megabytes(info.used)) + '/' + str(_bytes_to_megabytes(info.total))
                 gpu_mem_used = _bytes_to_megabytes(info.used)
@@ -477,7 +609,7 @@ def record_cgpu_info(outfile) -> Tuple:
                       'cpu_mem_used_GB_in_process_vms': memoryUse2,
                       'cpu_util_used_percent': cpu_percent,
                       'cpu_mem_used_percent': cpu_mem_used,
-                      "gpu_util": res.gpu,
+                      "gpu_util": res.gpu if res != 0 else 0,
                       'gpu_mem_used_MB': gpu_mem_used}
                 # try:
                     # with lock:
