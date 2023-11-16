@@ -168,34 +168,75 @@ class SampleShuffled(MapTransform, RandomizableTransform):
         return data
 
 class LoadPointCloud(MapTransform):
-    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None):
-        super().__init__(keys, allow_missing_keys=True)
+    def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False, in_channel=False, scale_r=100):
+        super().__init__(keys, allow_missing_keys=True,)
         self.target = [i.lstrip() for i in target.split('-')]
         self.position_center_norm = position_center_norm
         self.PNB = PNB
         self.repeated_sample = repeated_sample
         self.FPS_input = FPS_input
+        self.set_all_r_to_1 = set_all_r_to_1
+        self.set_all_xyz_to_1 = set_all_xyz_to_1
+        self.in_channel = in_channel
+        self.scale_r = scale_r
 
 
     def __call__(self, data: TransInOut) -> TransInOut:
         fpath = data['fpath']
-        # print(f"loading {fpath}")
+        print(f"loading {fpath}")
         xyzr = pd.read_pickle(fpath)
+        if self.in_channel>4:
+            data_key = 'data_wt_neighbors'
+        else:
+            data_key  = 'data'
+        
         if self.repeated_sample:
             # remove the interpolated points
             tmp_ls = []
-            for row in xyzr['data']:  # check three coordinates are integers
+            for row in xyzr[data_key]:  # check three coordinates are integers
                 if not row[0]%1 and not row[1]%1 and not row[2]%1:  
                     tmp_ls.append(row)
-            xyzr['data'] = np.array(tmp_ls)
+            xyzr[data_key] = np.array(tmp_ls)
 
         # choice = np.random.choice(len(xyzr['data']), self.PNB, replace=self.repeated_sample)
         # xyzr['data'] = xyzr['data'][choice]  # sample data
 
-        xyz_mm = xyzr['data'][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
+        xyz_mm = xyzr[data_key][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
         if self.position_center_norm:
             xyz_mm -= xyz_mm.mean(axis=0)
-        xyzr_mm = np.concatenate((xyz_mm, xyzr['data'][:,-1].reshape(-1,1)), axis=1)
+        xyzr_mm = np.concatenate((xyz_mm, xyzr[data_key][:,3:]), axis=1)
+        if self.set_all_r_to_1:
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, -1] = 1
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, 3] = 1
+                xyzr_mm[:, 7] = 1
+                xyzr_mm[:, 11] = 1
+                
+        if self.set_all_xyz_to_1:
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, :-1] = 1
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, :3] = 1
+                xyzr_mm[:, 4:7] = 1
+                xyzr_mm[:, 8:11] = 1
+        if self.scale_r:
+            if xyzr_mm.shape[-1]==3:
+                xyzr_mm[:, -1] *= self.scale_r
+            elif xyzr_mm.shape[-1]==12:
+                xyzr_mm[:, 3] *= self.scale_r
+                xyzr_mm[:, 7] *= self.scale_r
+                xyzr_mm[:, 11] *= self.scale_r
+
+        
+        # 按照最后一列进行排序
+        sorted_indices = np.argsort(xyzr_mm[:, -1])
+
+        # 使用排序后的索引重新排列数组的行
+        xyzr_mm = xyzr_mm[sorted_indices]
+
+        # xyzr_mm = sorted(xyzr_mm, key = lambda a_entry: a_entry[-1])
+        
         y = np.array([data[i] for i in self.target])
         file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
         new_data = {'pat_id': np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
