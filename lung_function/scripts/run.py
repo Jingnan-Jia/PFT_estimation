@@ -67,6 +67,7 @@ class Run:
     """
 
     def __init__(self, args: Namespace, dataloader_flag=True):
+        self.args = args
         self.mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
         self.device = torch.device("cuda")  # 'cuda'
         self.target = [i.lstrip() for i in args.target.split('-')]
