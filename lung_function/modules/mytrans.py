@@ -305,7 +305,7 @@ class CropCorseRegiond(RandomizableTransform):
         for i in range(len(self.df_data)):
             if id_str in self.df_data['img_fpath'].iloc[i]:
                 return i
-        raise Exception(f"Can not find the image id from data file")
+        raise Exception(f"Can not find the image id from lung_function.modules.ulip.data file")
 
     def corse_pred(self, image_fpath):
         img_idx = self.get_img_idx(image_fpath)
@@ -388,7 +388,7 @@ class CropCorseRegiond(RandomizableTransform):
 #         for i in range(len(self.df_data)):
 #             if id_str in self.df_data['img_fpath'].iloc[i]:
 #                 return i
-#         raise Exception(f"Can not find the image id from data file")
+#         raise Exception(f"Can not find the image id from lung_function.modules.ulip.data file")
 #
 #     def corse_pred(self, image_fpath):
 #         img_idx = self.get_img_idx(image_fpath)

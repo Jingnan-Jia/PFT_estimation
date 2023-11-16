@@ -18,7 +18,7 @@ def add_neighbor(source, target):
         dis_manhattan = np.sum(dis, axis=1)
         
         mx = np.max(dis_manhattan)
-        dis_manhattan[i] = mx  # itself
+        dis_manhattan[i] = mx  # itself 
         min_idx1 = np.argmin(dis_manhattan)
         dis_manhattan[min_idx1] = mx
         min_idx2 = np.argmin(dis_manhattan)
