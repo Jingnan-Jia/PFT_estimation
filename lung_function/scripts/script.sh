@@ -87,6 +87,9 @@ cd ${root_dir}
 script_dir=${root_dir}/lung_function/scripts
 
 pwd
+which conda
+conda info --envs
+conda list
 # shellcheck disable=SC2046
 idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u ${script_dir}/run.py 2>${script_dir}/${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${script_dir}/${slurm_dir}/slurm-${job_id}_${idx}_out.txt --hostname="$(hostname)" --jobid=${job_id} --epochs=100 --remark="change first conv layer and all 1,2,2, conv layer to have 2048,2,2,2 final hidden features, 100 epochs"
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --pretrained_ct='ct' --remark="combined_run,negtive add cos_loss "
