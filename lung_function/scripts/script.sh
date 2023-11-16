@@ -30,8 +30,8 @@ scontrol write batch_script ${job_id} ${slurm_dir}/slurm-${job_id}_args.sh
 # will lead to commit error: fatal: could not parse HEAD
 
 
-ssh -tt jjia@nodelogin02 /bin/bash << ENDSSH
-echo "Hello, I an in nodelogin02 to do some git operations."
+ssh -tt jjia@nodelogin01 /bin/bash << ENDSSH
+echo "Hello, I an in nodelogin01 to do some git operations."
 echo $job_id
 
 jobs="$(squeue -u jjia --sort=+i | grep [^0-9]0:[00-60] | awk '{print $1}')"  # "" to make sure multi lines assigned
@@ -57,6 +57,8 @@ scontrol write batch_script "${job_id}" lung_function/scripts/current_script.sh 
 
 git add -A
 sleep 2  # avoid error: fatal: Could not parse object (https://github.com/Shippable/support/issues/2932)
+git rm --cached *mlrunsdb.db-journal*
+
 git commit -m "jobid is ${job_id}"
 sleep 2
 git push origin master
