@@ -5,7 +5,7 @@
 
 import torch
 import torch.nn as nn
-# from lung_function.modules.networks.models_pcd.pointnet_utils import feature_transform_reguliarzer
+from lung_function.modules.networks.models_pcd.pointnet_utils import feature_transform_reguliarzer
 import torch.nn.functional as F
 
 
@@ -47,18 +47,18 @@ class MsePlusMae(nn.Module):
         return mse + mae
 
 
-# class pointnet_loss(torch.nn.Module):
-#     def __init__(self, mat_diff_loss_scale=0.001):
-#         super().__init__()
-#         self.mse = nn.MSELoss()
-#         self.mat_diff_loss_scale = mat_diff_loss_scale
+class pointnet_loss(torch.nn.Module):
+    def __init__(self, mat_diff_loss_scale=0.001):
+        super().__init__()
+        self.mse = nn.MSELoss()
+        self.mat_diff_loss_scale = mat_diff_loss_scale
 
-#     def forward(self, pred, target, trans_feat):
-#         loss = self.mse(pred, target)
-#         mat_diff_loss = feature_transform_reguliarzer(trans_feat)
+    def forward(self, pred, target, trans_feat):
+        loss = self.mse(pred, target)
+        mat_diff_loss = feature_transform_reguliarzer(trans_feat)
 
-#         total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
-#         return total_loss
+        total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
+        return total_loss
 
 
 def get_loss(loss: str, mat_diff_loss_scale=None) -> nn.Module:
@@ -85,6 +85,8 @@ def get_loss(loss: str, mat_diff_loss_scale=None) -> nn.Module:
         loss_fun = nn.MSELoss() + nn.L1Loss()  # for regression task
     elif loss == 'msehigher':
         loss_fun = MSEHigher()
+    elif loss == 'ce':
+        loss_fun = nn.CrossEntropyLoss()
     else:
         raise Exception("loss function is not correct " + loss)
     return loss_fun

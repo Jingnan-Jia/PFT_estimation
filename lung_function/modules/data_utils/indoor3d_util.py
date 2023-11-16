@@ -85,7 +85,7 @@ def data_to_obj(data,name='example.obj',no_wall=True):
     fout.close()
 
 def point_label_to_obj(input_filename, out_filename, label_color=True, easy_view=False, no_wall=False):
-    """ For visualization of a room from data_label file,
+    """ For visualization of a room from lung_function.modules.ulip.data_label file,
 	input_filename: each line is X Y Z R G B L
 	out_filename: OBJ filename,
             visualize input file by coloring point with label color
