@@ -70,11 +70,12 @@ conda activate py38
 
 # stdbuf -oL python -u run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --ct_sp='ori' --net='pointnet2_reg' --PNB=28000 --npoint_base=1024 --radius_base=60 --nsample_base=64 --batch_size=10 --mode='train' --epochs=500 --workers=6 --test_pat='random_as_ori' --target='FVC-DLCO_SB-FEV1-TLC_He' --remark="radius_base=60, correct random shuffle"
 
-root_dir = "/home/jjia/data/lung_function"
+root_dir="/home/jjia/data/lung_function"
 cd ${root_dir}
 
-script_dir = ${root_dir}/lung_function/scripts
+script_dir=${root_dir}/lung_function/scripts
 
+pwd
 # shellcheck disable=SC2046
 idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u ${script_dir}/run.py 2>${script_dir}/${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${script_dir}/${slurm_dir}/slurm-${job_id}_${idx}_out.txt --hostname="$(hostname)" --jobid=${job_id} --epochs=100 --remark="change first conv layer and all 1,2,2, conv layer to have 2048,2,2,2 final hidden features, 100 epochs"
 # idx=0; export CUDA_VISIBLE_DEVICES=$idx; stdbuf -oL python -u combined_run.py 2>${slurm_dir}/slurm-${job_id}_${idx}_err.txt 1>${slurm_dir}/slurm-${job_id}_${idx}_out.txt --outfile=${slurm_dir}/slurm-${job_id}_$idx --hostname="$(hostname)" --jobid=${job_id} --target='DLCOc_SB-FEV1-FVC-TLC_He' --pretrained_ct='ct' --remark="combined_run,negtive add cos_loss "
