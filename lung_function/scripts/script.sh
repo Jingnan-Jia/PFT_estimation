@@ -10,6 +10,7 @@
 ##SBATCH --mail-type=end
 ##SBATCH --mail-user=jiajingnan2222@gmail.com
 
+export PATH=/home/jjia/.conda/envs/py38/bin:$PATH
 
 eval "$(conda shell.bash hook)"
 
@@ -65,6 +66,8 @@ git push origin master
 sleep 2
 exit
 ENDSSH
+
+export PATH=/home/jjia/.conda/envs/py38/bin:$PATH
 
 echo "Hello, I am back in $(hostname) to run the code"
 conda activate py38
