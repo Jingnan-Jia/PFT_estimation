@@ -293,11 +293,11 @@ class Run:
                 batch_y = data[1].to(self.device)
             
 
-            # if not self.flops_done:  # only calculate macs and params once
-            #     macs, params = thop.profile(self.net, inputs=(batch_x, ))
-            #     self.flops_done = True
-            #     log_param('macs_G', str(round(macs/1e9, 2)))
-            #     log_param('net_params_M', str(round(params/1e6, 2)))
+            if not self.flops_done:  # only calculate macs and params once
+                macs, params = thop.profile(self.net, inputs=(batch_x, ))
+                self.flops_done = True
+                log_param('macs_G', str(round(macs/1e9, 2)))
+                log_param('net_params_M', str(round(params/1e6, 2)))
             if 'pcd' == args.input_mode[-3:]:  #TODO: 
                 batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
             if args.net == 'mlp_reg' and args.set_all_xyz_to_1 is True:
@@ -424,7 +424,7 @@ def run(args: Namespace):
     Run the whole  experiment using this args.
     """
     myrun = Run(args)
-    modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
+    modes = ['valid', 'test', 'train'] if args.mode != 'infer' else ['valid', 'test']
     if args.mode == 'infer':
         for mode in ['test']:
             for i in range(1):
@@ -433,17 +433,17 @@ def run(args: Namespace):
         for i in range(args.epochs):  # 20000 epochs
             myrun.step('train', i)
             if i % args.valid_period == 0:  # run the validation
-                mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-                if os.path.exists(mypath.save_label_fpath('valid')):
-                    os.remove(mypath.save_label_fpath('valid'))
-                if os.path.exists(mypath.save_label_fpath('test')):
-                    os.remove(mypath.save_label_fpath('test'))
-                if os.path.exists(mypath.save_pred_fpath('valid')):
-                    os.remove(mypath.save_pred_fpath('valid'))
-                if os.path.exists(mypath.save_pred_fpath('test')):
-                    os.remove(mypath.save_pred_fpath('test'))
-                myrun.step('valid',  i, save_pred=True)
-                myrun.step('test',  i, save_pred=True)
+                # mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
+                # if os.path.exists(mypath.save_label_fpath('valid')):
+                #     os.remove(mypath.save_label_fpath('valid'))
+                # if os.path.exists(mypath.save_label_fpath('test')):
+                #     os.remove(mypath.save_label_fpath('test'))
+                # if os.path.exists(mypath.save_pred_fpath('valid')):
+                #     os.remove(mypath.save_pred_fpath('valid'))
+                # if os.path.exists(mypath.save_pred_fpath('test')):
+                #     os.remove(mypath.save_pred_fpath('test'))
+                myrun.step('valid',  i)
+                myrun.step('test',  i)
             if i == args.epochs - 1:  # load best model and do inference
                 print('start inference')
                 if os.path.exists(myrun.mypath.model_fpath):
@@ -465,8 +465,8 @@ def run(args: Namespace):
                     myrun.step(mode, i, save_pred=True)
 
         mypath = PFTPath(args.id, check_id_dir=False, space=args.ct_sp)
-        label_ls = [mypath.save_label_fpath(mode) for mode in ['valid', 'test']]
-        pred_ls = [mypath.save_pred_fpath(mode) for mode in ['valid', 'test']]
+        label_ls = [mypath.save_label_fpath(mode) for mode in modes]
+        pred_ls = [mypath.save_pred_fpath(mode) for mode in modes]
 
         for pred_fpath, label_fpath in zip(pred_ls, label_ls):
             r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
