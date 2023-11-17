@@ -22,8 +22,7 @@ from lung_function.modules.datasets import all_loaders
 from lung_function.modules.trans import batch_bbox2_3D
 from scipy.ndimage import gaussian_filter, median_filter
 import scipy
-from lung_function.scripts.run import Run
-import time
+
 import os
 from monai.utils import set_determinism
 import random
@@ -45,8 +44,6 @@ import threading
 import mlflow
 from mlflow import log_metric, log_metrics, log_param, log_params
 import sys
-import argparse
-
 sys.path.append("../../..")  #
 print(os.getcwdb())
 
@@ -150,11 +147,7 @@ def occlusion_map(ptch, data, net,  inlung=False, targets=None, occlusion_dir=No
     x = x.to(device)  # shape [channel, w, h]
     net.to(device)
     x_ = x.unsqueeze(0).unsqueeze(0)  # add a channel and batch dims
-    net.eval()
-    
-    with torch.no_grad():
-        with torch.cuda.amp.autocast(): 
-            out_ori = net(x_)
+    out_ori = net(x_)
     l, w, h = x.shape
     # print(x.shape)  # [1, 512, 512] [channel, w, h]
     # print(out_ori.shape)  # [1, 3]
@@ -163,11 +156,6 @@ def occlusion_map(ptch, data, net,  inlung=False, targets=None, occlusion_dir=No
     out_ori = out_ori.detach().cpu().numpy()
     nb_out = out_ori.shape[1]
     out_ori_all = out_ori.flatten()
-    
-    # out_ori = np.array([[1,2,3,4]])
-    # nb_out = 1
-    # out_ori_all = np.array([1,2,3,4])
-    
 
     x_np = x.clone().detach().cpu().numpy()  # shape [l, w, h]
     map_all_ls = [np.zeros((l, w, h)) for i in range(nb_out)]
@@ -226,10 +214,7 @@ def occlusion_map(ptch, data, net,  inlung=False, targets=None, occlusion_dir=No
                 new_x = torch.tensor(tmp).float()
                 new_x = new_x.unsqueeze(0).unsqueeze(0)
                 new_x = new_x.to(device)
-                net.eval()
-                with torch.no_grad():
-                    with torch.cuda.amp.autocast():                
-                        out = net(new_x)
+                out = net(new_x)
 
                 out_np = out.clone().detach().cpu().numpy()
                 out_all = out_np.flatten()
@@ -293,24 +278,12 @@ def get_pat_dir(img_fpath: str) -> str:
         if 'Pat_' in path:  # "Pat_023"
             return path
 
-def get_loader(mode, mypath, max_img_nb, args):
-    label_all = pd.read_csv(mypath.save_label_fpath(mode))
-    pred_all = pd.read_csv(mypath.save_pred_fpath(mode))
-    mae_all = (label_all - pred_all).abs()
-    mae_all['average'] = mae_all.mean(numeric_only=True, axis=1)
-    label_all_sorted = label_all.loc[mae_all['average'].argsort()[:max_img_nb]]
-    top_pats = label_all_sorted['pat_id'].to_list()
 
-    data_dt = all_loaders(mypath.data_dir, mypath.label_fpath, args, datasetmode='valid', top_pats=top_pats)
-    dataloader = data_dt['valid']
-    return dataloader
-
-
-
-def batch_occlusion(args, mypath, myrun, patch_size: int, stride: int, max_img_nb: int, inlung, occ_status='healthy'):
+def batch_occlusion(args, net_id: int, patch_size: int, stride: int, max_img_nb: int, inlung, occ_status='healthy'):
     """Generate a batch of occlusion results
 
     Args:
+        net_id (int): _description_
         patch_size (int): _description_
         stride (int): _description_
         max_img_nb (int): _description_
@@ -318,97 +291,80 @@ def batch_occlusion(args, mypath, myrun, patch_size: int, stride: int, max_img_n
         occ_status (str, optional): _description_. Defaults to 'healthy'.
     """
 
-    targets = [i.lstrip() for i in args.target.split('-')]  # FVC-DLCO_SB-FEV1-TLC_He
-    
-    valid_dataloader = get_loader(mode=mode, mypath=mypath, max_img_nb=max_img_nb, args=args)
+    targets = [i.lstrip() for i in args.target.split('-')
+               ]  # FVC-DLCO_SB-FEV1-TLC_He
+    net = get_net_3d(name=args.net, nb_cls=len(
+        targets), image_size=args.x_size, pretrained=False)  # output FVC and FEV1
 
+    mypath = PFTPath(net_id, space=args.ct_sp)  # get path
+    mode = 'valid'
+    label_all = pd.read_csv(mypath.save_label_fpath(mode))
+    pred_all = pd.read_csv(mypath.save_pred_fpath(mode))
+    mae_all = (label_all - pred_all).abs()
+    mae_all['average'] = mae_all.mean(numeric_only=True, axis=1)
+    label_all_sorted = label_all.loc[mae_all['average'].argsort()[:max_img_nb]]
+    top_pats = label_all_sorted['pat_id'].to_list()
+
+    data_dt = all_loaders(mypath.data_dir, mypath.label_fpath,
+                          args,datasetmode='valid', top_pats=top_pats)  # set nb to save time
+    # only show visualization maps for valid dataset
+    valid_dataloader = iter(data_dt[mode])
+
+    ckpt = torch.load(mypath.model_fpath, map_location=device)
+    if type(ckpt) is dict and 'model' in ckpt:
+        model = ckpt['model']
+    else:
+        model = ckpt
+    net.load_state_dict(model, strict=False)  # load trained weights
+    net.eval()  # 8
 
     for data in tqdm(valid_dataloader):  # a image in a batch
-        occlusion_map_dir = f"{mypath.id_dir}/{'valid_data_occlusion_maps_occ_by_masked_' + occ_status}/SSc_{data['pat_id'][0][0]}"
-        occlusion_map(patch_size, data,
-                        myrun.net,
-                        inlung,
-                        targets,
-                        occlusion_map_dir,
-                        save_occ_x=True,
-                        stride=stride,
-                        occ_status=occ_status,
-                        inputmode=args.input_mode)
+        if int(data['pat_id']) in top_pats:  # only perform the most accurate patients
+            occlusion_map_dir = f"{mypath.id_dir}/{'valid_data_occlusion_maps_occ_by_masked_' + occ_status}/SSc_{data['pat_id'][0][0]}"
+            occlusion_map(patch_size, data,
+                          net,
+                          inlung,
+                          targets,
+                          occlusion_map_dir,
+                          save_occ_x=True,
+                          stride=stride,
+                          occ_status=occ_status,
+                          inputmode=args.input_mode)
 
-
-class Args:  # convert dict to class attribute
-    def __init__(self, d=None):
-        if d is not None:
-            for key, value in d.items():
-                if value == 'True':
-                    value = True
-                elif value == 'False':
-                    value = False
-                else:
-                    try:
-                        value = float(value)  # convert to float value if possible
-                        try:
-                            if int(value) == value:  # convert to int if possible
-                                value = int(value)
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-                setattr(self, key, value)
-                
-def pre_setting(Ex_id):
-    # retrive the run for the ex id
-    mlflow.set_tracking_uri("http://nodelogin02:5000")
-    experiment = mlflow.set_experiment("lung_fun_db15")
-    client = MlflowClient()
-    run_ls = client.search_runs(experiment_ids=[experiment.experiment_id],
-                                filter_string=f"params.id LIKE '%{Ex_id}%'")
-    run_ = run_ls[0]
-    args_dt = run_.data.params  # extract the hyper parameters
-    args = Args(args_dt)  # convert to object
-    args.workers=1
-    args.use_cuda = True
-    mypath = PFTPath(Ex_id, check_id_dir=False, space=args.ct_sp)
-    args.pretrained_id = Ex_id
-    myrun = Run(args, dataloader_flag=False)
-    
-    return args, mypath, myrun
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--id', type=int, default=0)  # ori = 512
-    # args = parser.parse_args()
-    
-    # Ex_id = args.id  # 2522 vgg 4-out, 2601 for vgg, 2657 for x3d_m FEV, 2666 for x3d_m of four outputs.
-    for Ex_id in [2535, 2732    ]:
-        print(Ex_id)
-        max_img_nb = 1
-        mode = 'valid'
-        
-        args, mypath, myrun = pre_setting(Ex_id)
-        
-        # for occ_status in ['shuffle', 'blur_median_5', 'blur_gaussian_5']:
-        occ_status = 'shuffle'  # 'shuffle', 'constant' or 'healthy', or 'blur_median_*', or 'blur_gaussian_*', -1 is the minimum value
-        patch_size = 16  # same for 3 dims
-        stride = patch_size  # /2 or /4 to have high resolution heat map
-        # grid_nb = 10
+    # for occ_status in ['shuffle', 'blur_median_5', 'blur_gaussian_5']:
+    occ_status = 'blur_median_5'  # 'constant' or 'healthy', or 'blur_median_*', or 'blur_gaussian_*', -1 is the minimum value
+    patch_size = 16  # same for 3 dims
+    stride = patch_size  # /2 or /4 to have high resolution heat map
+    # grid_nb = 10
 
-        # 2414->2415_fold1: ct_masked_by_torso
-        # 2194->2195_fold1: ct
-        # 2144->2145_fold1: ct_masked_by_lung
-        # 2258->2259_fold1: vessel
+    # 2414->2415_fold1: ct_masked_by_torso
+    # 2194->2195_fold1: ct
+    # 2144->2145_fold1: ct_masked_by_lung
+    # 2258->2259_fold1: vessel
 
-        if args.input_mode in ['ct_masked_by_torso', 'ct']:
+
+    args = get_args()  # get argument
+    args.batch_size = 1  # here batch size must be 1.
+    args.net = 'vgg11_3d'
+    args.target = 'FVC-DLCO_SB-FEV1-TLC_He'
+    args.ct_sp = '1.5'
+
+    id_input_dt = {
+            2415: 'ct_masked_by_torso', 
+            2195: 'ct', 
+            2145: 'ct_masked_by_lung', 
+            2259: 'vessel' }
+    for id, im in id_input_dt.items():
+        args.input_mode = im
+        if im in ['ct_masked_by_torso', 'ct']:
             INLUNG = False
-        else: 
+        else:
             INLUNG = True
 
-        batch_occlusion(args, mypath, myrun, patch_size, stride, max_img_nb=max_img_nb,
+
+        batch_occlusion(args, id, patch_size, stride, max_img_nb=1,
                         inlung=INLUNG, occ_status=occ_status)
+        print('---------------')
     print('finish all!')
-
-
-
-
-
-

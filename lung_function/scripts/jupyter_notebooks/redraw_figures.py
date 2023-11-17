@@ -30,8 +30,8 @@ from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run
 from lung_function.modules.trans import batch_bbox2_3D
-# import sys
-# sys.path.append("../modules/networks/models_pcd")
+import sys
+sys.path.append("../modules/networks/models_pcd")
 
 args = get_args()
 
