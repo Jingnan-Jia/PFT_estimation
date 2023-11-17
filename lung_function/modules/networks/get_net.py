@@ -231,8 +231,7 @@ def get_net_3d(name: str,
             
             # net.blocks[-1].pool.pool = nn.AvgPool3d(kernel_size=(7, 7, 7), stride=1, padding=0)  # change from 16, 7, 7 to 7, 7, 7
             
-            # net.blocks[-1].pool.post_conv = nn.Conv3d(432, 8192, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
-            net.blocks[-1].pool.post_conv = nn.Sequential(nn.Flatten(1),nn.Linear(in_features=432, out_features=8192, bias=True))
+            net.blocks[-1].pool.post_conv = nn.Conv3d(432, 8192, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
             # net.blocks[-1].dropout = nn.Dropout(0)
             net.blocks[-1].proj = nn.Linear(in_features=8192, out_features=nb_cls, bias=True)  # only command previously
             
