@@ -26,10 +26,6 @@ def get_args(jupyter=False):
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
-    parser.add_argument('--fc2_nodes', help='the number of nodes of fc2 layer, original is 4096', type=int,
-                        default=1024)
-    parser.add_argument('--fc1_nodes', help='the number of nodes of fc2 layer, original is 4096', type=int,
-                        default=1024)
     parser.add_argument('--pointnet_fc_ls', help='a parameter list for fully connected layers. First number is the feature number after feature extraction', type=str, default="1024-512-256")
     parser.add_argument('--dp_fc1_flag', help='dropout for fc1',
                         type=boolean_string, default=True)
@@ -44,8 +40,14 @@ def get_args(jupyter=False):
     parser.add_argument('--radius_scaling', help='base of radius',
                         type=float, default=2)  # ori = 2
     parser.add_argument('--sa_layers', help='sa_layers',
-                        type=int, default=2)  # ori = 3
-
+                        type=int, default=3)  # ori = 3
+    
+    # for vgg series networks
+    parser.add_argument('--fc2_nodes', help='the number of nodes of fc2 layer, original is 4096', type=int,
+                        default=1024)
+    parser.add_argument('--fc1_nodes', help='the number of nodes of fc2 layer, original is 4096', type=int,
+                        default=1024)
+    
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',

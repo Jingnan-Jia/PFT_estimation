@@ -503,7 +503,15 @@ def main():
     np.random.seed(SEED)
 
     mlflow.set_tracking_uri("http://nodelogin01:5000")
-    experiment = mlflow.set_experiment("lung_fun_db15")
+    if args.net in ['pointnet_reg','pointnet2_reg', 'pointnext', 'pointmlp_reg', 'mlp_reg']:
+        ex_name = 'pft_pnn'
+    elif args.net in ['gnn']:
+        ex_name = 'pft_gnn'
+    elif args.net in ['x3d_m-pointnet2_reg', 'x3d_m-gnn']:
+        ex_name = 'pft_combined'
+    else:
+        ex_name = 'lung_fun_db15'
+    experiment = mlflow.set_experiment(ex_name)
     
     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
     # write super parameters from set_args.py to record file.

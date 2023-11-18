@@ -328,9 +328,13 @@ def main():
         args.gconv_name = 'GATConv' 
         args.gnorm ='InstanceNorm'
         args.heads = 1
-        args.batch_size = 16
+        args.batch_size = 32
         args.hidden_channels = 128
         args.layers_nb = 2
+        args.lr = 0.001
+        args.weight_decay = 0.0001
+        args.input_mode = 'vessel_skeleton_pcd'  # not necessary
+        args.net = 'pointnet2_reg'  # not necessary
         
         current_id = id
         tmp_args_dt = vars(args)
