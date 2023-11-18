@@ -377,13 +377,15 @@ def main():
             # add r
             r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
             r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
-            r_p_value = txtprocess(r_p_value)
+            r_p_value_ensemble = txtprocess(r_p_value_ensemble)
 
             log_params(r_p_value_ensemble)
 
             # add mae
             mae_dict = mae(pred_fpath, label_fpath, ignore_1st_column=True)
             mae_ensemble = {'ensemble_' + k:v for k, v in mae_dict.items()}
+            mae_ensemble = txtprocess(mae_ensemble)
+
             print(mae_ensemble)
             log_params(mae_ensemble)  
     
