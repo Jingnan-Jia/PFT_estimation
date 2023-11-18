@@ -9,7 +9,6 @@ sys.path.append("/home/jjia/data/lung_function/lung_function/modules/networks/mo
 sys.path.append("/home/jjia/data/lung_function/lung_function/modules")
 
 import random
-import statistics
 import threading
 import time
 from pathlib import Path
