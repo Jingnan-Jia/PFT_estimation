@@ -229,7 +229,8 @@ class Run:
                 #     data[key] = points.transpose(2, 1)
                 
             if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
-                batch_x = data[key]  # n, c, z, y, x
+                batch_x = data[key]  
+                batch_x = batch_x.permute((0, 2, 1))
             elif args.input_mode == 'modelnet40_pcd':  # ModelNet, ShapeNet
                 batch_x = data[0]
             else:
@@ -293,7 +294,7 @@ class Run:
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
             
-
+            print('batchx shape', batch_x.shape)
             if not self.flops_done:  # only calculate macs and params once
                 macs, params = thop.profile(self.net, inputs=(batch_x, ))
                 self.flops_done = True
