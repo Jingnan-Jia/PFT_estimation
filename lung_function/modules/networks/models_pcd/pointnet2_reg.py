@@ -42,6 +42,7 @@ class get_model(nn.Module):
         self.fc3 = nn.Linear(256, num_class)
 
     def forward(self, xyzr):
+        print('shape of data', xyzr.shape)
         B, _, _ = xyzr.shape  # Batch, 3+1, N
 
         l1_xyz, l1_points = self.sa1(xyzr[:,:3,:], xyzr[:,3:,:])

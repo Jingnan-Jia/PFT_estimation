@@ -137,7 +137,7 @@ def get_args(jupyter=False):
     parser.add_argument('--lr', help='learning rate',
                         type=float, default=0.0001)
     parser.add_argument('--adamw', help='adamw optimizer',
-                        type=boolean_string, default='False')
+                        type=boolean_string, default='True')
     parser.add_argument('--cosine_decay', help='cosine_decay',
                         type=boolean_string, default='False')
     # others
