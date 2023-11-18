@@ -230,7 +230,6 @@ class Run:
                 
             if args.input_mode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
                 batch_x = data[key]  
-                batch_x = batch_x.permute((0, 2, 1))
             elif args.input_mode == 'modelnet40_pcd':  # ModelNet, ShapeNet
                 batch_x = data[0]
             else:
@@ -294,17 +293,18 @@ class Run:
             else:  # ModelNet, ShapeNet
                 batch_y = data[1].to(self.device)
             
-            print('batchx shape', batch_x.shape)
-            if not self.flops_done:  # only calculate macs and params once
-                macs, params = thop.profile(self.net, inputs=(batch_x, ))
-                self.flops_done = True
-                log_param('macs_G', str(round(macs/1e9, 2)))
-                log_param('net_params_M', str(round(params/1e6, 2)))
+
             if 'pcd' == args.input_mode[-3:]:  #TODO: 
                 batch_x = batch_x.permute(0, 2, 1) # from b, n, d to b, d, n	
             if args.net == 'mlp_reg' and args.set_all_xyz_to_1 is True:
                 batch_x = batch_x[:, -1, :]
 
+            if not self.flops_done:  # only calculate macs and params once
+                macs, params = thop.profile(self.net, inputs=(batch_x, ))
+                self.flops_done = True
+                log_param('macs_G', str(round(macs/1e9, 2)))
+                log_param('net_params_M', str(round(params/1e6, 2)))
+                
             with torch.cuda.amp.autocast():
                 if mode != 'train' or save_pred:  # save pred for inference
                     with torch.no_grad():
