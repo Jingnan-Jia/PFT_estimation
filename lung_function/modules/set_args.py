@@ -22,7 +22,7 @@ def get_args(jupyter=False):
                                           'slowfast_r50', 'x3d_xs', 'x3d_s', 'x3d_m', 'x3d_l', 'pointnet_reg','pointnet2_reg',
                                           'vgg11_3d', 'pointnext', 'pointmlp_reg', 'mlp_reg', 'x3d_m-pointnet2_reg', 
                                           'fcnet_192', 'fcnet_1024','fcnet_1216'),  # 'r2plus1d_18' out of memory
-                        help='network name', type=str, default='x3d_m') 
+                        help='network name', type=str, default='pointnet2_reg') 
     
     # Point cloud network configuration
     parser.add_argument('--cfg', help='fpath of cfg',type=str, default='SSc_vessel/pointnext-s.yaml')  # ori = 40
@@ -51,7 +51,7 @@ def get_args(jupyter=False):
     # data
     # common data
     parser.add_argument('--batch_size', help='batch_size',
-                        type=int, default=1)
+                        type=int, default=10)
     parser.add_argument('--ct_sp', help='space', type=str,
                         choices=('ori', '1.0', '1.5'), default='1.5')
     parser.add_argument('--kfold_seed', help='kfold_seed',
@@ -64,7 +64,7 @@ def get_args(jupyter=False):
         'ct_lower_in_lung', 'ct_front_in_lung', 'lung_masks', 'ct_back_in_lung', 'vessel', 'ct_masked_by_vessel',  
         'ct_masked_by_vessel_dilated1', 'ct_masked_by_vessel_dilated2', 'ct_masked_by_vessel_dilated3', 'ct_masked_by_vessel_dilated4',
         'IntrA_cls_pcd', 'modelnet40_pcd', 'lung_mask_pcd', 'vessel_skeleton_pcd', 'ct-vessel_skeleton_pcd', 'ct-lung_mask_pcd'),
-        type=str, default='ct')
+        type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--target', help='target prediction', type=str,
                         default='DLCOc_SB-FEV1-FVC-TLC_He')  # FVC-DLCO_SB-FEV1-TLC_He-Age-Height-Weight--DLCOc/pred-FEV1/pred-FVC/predNew-TLC/pred DLCOcPP-FEV1PP-FVCPP-TLCPP
     parser.add_argument(
@@ -108,7 +108,7 @@ def get_args(jupyter=False):
                         type=str, default="0")  # SSc-852-853-854-855, 1504-1505-1510-1515
     # parser.add_argument('--reload_jobid', help='jobid used for inference, or continue_train', type=int, default=0)
     parser.add_argument('--pretrained_imgnet', help='if pretrained from imagenet',
-                        type=boolean_string, default='True')
+                        type=boolean_string, default='False')
     
     # for combined net
     parser.add_argument('--pretrained_ct', help='pretrained from pervioius CT or videos', choices=('ct', 'videos'),
@@ -131,11 +131,11 @@ def get_args(jupyter=False):
                         default='mse')
     parser.add_argument('--mat_diff_loss_scale',
                         help='scale for another loss', type=float, default=0)
-    parser.add_argument('--epochs', help='total epochs', type=int, default=100)
+    parser.add_argument('--epochs', help='total epochs', type=int, default=1)
     parser.add_argument('--weight_decay', help='L2 regularization', type=float,
-                        default=0.001)  # must be a float number !
+                        default=0.0001)  # must be a float number !
     parser.add_argument('--lr', help='learning rate',
-                        type=float, default=0.0001)
+                        type=float, default=0.001)
     parser.add_argument('--adamw', help='adamw optimizer',
                         type=boolean_string, default='True')
     parser.add_argument('--cosine_decay', help='cosine_decay',

@@ -362,8 +362,13 @@ def get_net_3d(name: str,
 
     # device = torch.device("cuda")
     # net = net.to(device)
-    summary(net, (1, 240, 240, 240))
-    
+    if name in ['x3d_m']:
+        summary(net, (1, 240, 240, 240))
+    elif name in ['pointnet2_reg']:
+        summary(net, (4, 28000))
+
+    else:
+        pass
     return net
 
 
