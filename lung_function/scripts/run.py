@@ -487,10 +487,7 @@ def run(args: Namespace):
                 
     print('Finish all things!')
 
-
-
-
-    
+   
         
 def main():
     SEED = 4
