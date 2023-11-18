@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=amd-gpu-long,gpu-long
+#SBATCH --partition=amd-gpu-long
 ##SBATCH --exclude=node853,node858
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=6
