@@ -55,14 +55,16 @@ from lung_function.modules.path import PFTPath
 import os
 
 from monai.data import DataLoader
-
+from lung_function.modules.networks.get_net import FCNet, GCN
 from lung_function.modules import provider
 from lung_function.modules.compute_metrics import icc, metrics
 from lung_function.modules.dataset_gcn import all_loaders
 from lung_function.modules.loss import get_loss
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
-from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre
+from lung_function.modules.tool import (record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre, 
+                                        ensemble_4folds_validation, ensemble_4folds_testing, 
+                                        log_metrics_all_folds_average, average_all_folds)
 import optuna
 
 
@@ -74,149 +76,6 @@ log_metric = try_func(log_metric)
 log_metrics = try_func(log_metrics)
 
     
-class FCNet(nn.Module):
-    def __init__(self, in_chn, out_chn, args):
-        super().__init__()
-
-        self.nb_feature = in_chn
-        fc0, fc1 = 1024, 1024
-        args.bn = 'inst'
-        if args.bn == 'inst':
-            self.bn1 = nn.InstanceNorm1d(fc0) 
-            self.bn2 = nn.InstanceNorm1d(fc1)
-        else:
-            self.bn1 = nn.BatchNorm1d(fc0) 
-            self.bn2 = nn.BatchNorm1d(fc1)
-  
-        self.fc1 = nn.Linear(self.nb_feature, fc0)
-        self.drop1 = nn.Dropout(0.4)
-        self.fc2 = nn.Linear(fc0, fc1)
-        self.drop2 = nn.Dropout(0.4)
-        self.fc3 = nn.Linear(fc1, out_chn)
-        
-
-    def forward(self, x):  # x shape: (B, n)
-
-        x = self.drop1(F.relu(self.bn1(self.fc1(x))))
-        x = self.drop2(F.relu(self.bn2(self.fc2(x))))
-        out = self.fc3(x)
-        return out
-    
-    
-class GCN(torch.nn.Module):
-    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
-        super(GCN, self).__init__()
-        torch.manual_seed(12345)
-        args.hidden_channels = hidden_channels = 128
-        args.layers_nb = 1
-        self.conv_layer_ls = []
-
-        self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
-
-        first_kwargs = {'in_channels': in_chn, 'out_channels': hidden_channels, 'heads': args.heads}
-        mid_kwargs = {'in_channels': hidden_channels, 'out_channels': hidden_channels, 'heads': args.heads}
-        
-        self.GNorm = getattr(torch_geometric.nn, args.gnorm)
-            
-        
-        for idx, i in enumerate(range(args.layers_nb)):  # this section need to be fixed!
-            if args.gconv_name == 'GATConv':
-                gat_chn = hidden_channels # int(hidden_channels *  args.heads * 2**(idx-1))
-                mid_kwargs['out_channels'] = mid_kwargs['in_channels'] = gat_chn
-                last_channels = norm_channels = int(gat_chn * args.heads)
-                # last_channels = norm_channels = hidden_channels
-            else:
-                last_channels = norm_channels = hidden_channels
-            
-            if i == 0:
-                self.conv_layer_ls.append(self.Gconv(**first_kwargs))
-            else:
-
-                self.conv_layer_ls.append(self.Gconv(**mid_kwargs))
-                
-            self.conv_layer_ls.append(nn.ReLU(inplace=True))
-            
-
-                
-            if args.gnorm == 'DiffGroupNorm':
-                norm_layer = self.GNorm(hidden_channels, groups =10)
-            else:
-                norm_layer = self.GNorm(norm_channels)
-                self.conv_layer_ls.append(norm_layer)
-            
-
-            
-        self.extractor = torch.nn.Sequential(*self.conv_layer_ls)
-        self.classifier = FCNet(last_channels, out_chn, args)
-        
-    def forward(self, x, edge_index, batch_idx, out_feature=False):
-        B = x.shape[0]
-        # 1. Obtain node embeddings 
-        # for layer in self.conv_layer_ls:
-        #     x = layer(x, edge_index)
-        for layer in self.extractor:
-            if isinstance(layer, self.Gconv):
-                x = layer(x, edge_index)
-            else:
-                x = layer(x)
-        # x = self.extractor(x, edge_index)
-        # x = self.conv1(x, edge_index)
-        # x = x.relu()
-        # x = self.conv2(x, edge_index)
-        # x = x.relu()
-        # if self.gcv3:
-        #     x = self.conv3(x, edge_index)
-
-        # 2. Readout layer
-        feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
-        # 3. Apply a final classifier
-        x = self.classifier(feature)
-        
-        if out_feature:
-            return x, feature
-        return x
-
-# class GCNWhole(torch.nn.Module):
-#     def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
-#         super(GCNWhole, self).__init__()
-#         torch.manual_seed(12345)
-#         args.hidden_channels = hidden_channels = args.trial.suggest_categorical('hidden_channels', [64, 128, 256])
-        
-#         args.layers_nb = args.trial.suggest_categorical('hidden_channels', [3, 4, 5])
-
-#         kwargs = {'in_channels': in_chn,
-#                   'hidden_channels': hidden_channels,
-#                   'num_layers': args.layers_nb,
-#                   'out_channels': out_chn}
-#         if args.model_name == 'XConv':
-#             del kwargs['num_layers']
-#         elif args.model_name in ['JumpingKnowledge', 'MetaLayer', 'DeepGCNLayer']:
-#             raise Exception('model not defined', args.model_name)
-#         else:
-#             pass
-#         self.Gconv = getattr(torch_geometric.nn, args.model_name)
-        
-            
-#         self.extractor = self.Gconv(in_channels = in_chn, 
-#                                     hidden_channels = hidden_channels,
-#                                     num_layers = 4,
-#                                     out_channels = hidden_channels)
-#         self.classifier = FCNet(hidden_channels, out_chn, args)
-        
-#     def forward(self, x, edge_index, batch_idx, out_feature=False):
-#         B = x.shape[0]
-        
-#         x = self.extractor(x, edge_index)      
-#         # 2. Readout layer
-#         feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
-        
-#         # 3. Apply a final classifier
-#         x = self.classifier(feature)
-        
-#         if out_feature:
-#             return x, feature
-#         return x
-
     
 class Run:
     """A class which has its dataloader and step_iteration. It is like Lighting. 
@@ -387,7 +246,7 @@ def run(args: Namespace):
     Run the whole  experiment using this args.
     """
     myrun = Run(args)
-    modes = ['train', 'valid', 'test'] if args.mode != 'infer' else ['valid', 'test']
+    modes = ['valid', 'test', 'train'] if args.mode != 'infer' else ['valid', 'test']
     if args.mode == 'infer':
         for mode in ['valid', 'test', 'train']:
             if mode=='train':
@@ -440,127 +299,7 @@ def run(args: Namespace):
     return myrun.BestMetricDt['validMAEEpoch_AllBest']
 
 
-def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='params'):
-    """
-    Average the logs form mlflow for all folds.
-    """
-    current_run = retrive_run(experiment=experiment, reload_id=current_id)
-
-    all_dt = {}
-    for id in id_ls:
-        mlflow_run = retrive_run(experiment=experiment, reload_id=id)
-        if key == 'params':
-            target_dt = mlflow_run.data.params
-            current_dt = current_run.data.params
-        elif key == 'metrics':
-            target_dt = mlflow_run.data.metrics
-            current_dt = current_run.data.metrics
-        else:
-            raise Exception( f"Expected key of 'params' or 'metrics', but got key: {key}")
-
-        for k, v in target_dt.items():
-            if k not in current_dt:  # re-writing parameters in mlflow is not allowed
-                if k not in all_dt:
-                    all_dt[k] = []
-                # this is a value, not a list (see bellow)
-                if not isinstance(all_dt[k], list):
-                    continue
-                try:
-                    all_dt[k].append(float(v))
-                except Exception:
-                    # can not be converted to numbers which can not be averaged
-                    all_dt[k] = v
-
-    all_dt = {k: statistics.mean(v) if isinstance(
-        v, list) else v for k, v in all_dt.items()}
-
-    return all_dt
-
-
-def log_metrics_all_folds_average(id_ls: list, id: int, experiment):
-    """
-    Get the 4 folds metrics and parameters
-    Average them
-    Log average values to the parent mlflow
-    """
-    # average parameters
-    param_dt = average_all_folds(id_ls, id, experiment, key='params')
-    if len(param_dt) < 100:
-        log_params(param_dt)
-
-    elif len(param_dt) >= 100 and len(param_dt) < 200:
-        dt_1 = {k: param_dt[k] for i, k in enumerate(param_dt) if i < 100}
-        dt_2 = {k: param_dt[k] for i, k in enumerate(param_dt) if i >= 100}
-        log_params(dt_1)
-        log_params(dt_2)
-    else:
-        raise Exception(
-            f"Our logging request can contain at most 200 params. Got {len(param_dt)} params")
-
-    # average metrics
-    metric_dt = average_all_folds(id_ls, id, experiment, key='metrics')
-    log_metrics(metric_dt, 0)
- 
-
-
-def ensemble_4folds_testing(fold_ex_dt):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-
-    dir0 = parent_dir + str(fold_ex_dt[0])
-    ave_fpath = dir0  + '/test_pred.csv'
-    label_fpath = dir0  + '/test_label.csv'
-
-    output_file_path = Path(ave_fpath)
-    output_file_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    df_ls = []
-    for i in [1,2,3,4]:
-        data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/test_pred*.csv')
-        for data_fpath in data_fpath_ls:
-            df = pd.read_csv(data_fpath,index_col=0)
-            df_ls.append(df)
-            
-    df_ave = sum(df_ls)/len(df_ls)
-    df_ave.to_csv(ave_fpath)
-    print(ave_fpath)
-    
-    label_fpath_fold1 = parent_dir + str(fold_ex_dt[i]) + '/test_label.csv'
-    df_label = pd.read_csv(label_fpath_fold1,index_col=0)
-    df_label.to_csv(label_fpath)
-    
         
-def ensemble_4folds_validation(fold_ex_dt_ls):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-    if type(fold_ex_dt_ls) is not list:
-        fold_ex_dt_ls = [fold_ex_dt_ls]
-    for fold_ex_dt in fold_ex_dt_ls:
-        dir0 = parent_dir + str(fold_ex_dt[0])
-        pred_all_fpath = dir0  + '/valid_pred.csv'
-        label_all_fpath = dir0  + '/valid_label.csv'
-        output_file_path = Path(pred_all_fpath)
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        df_pred_ls, df_label_ls = [], []
-        for i in [1,2,3,4]:
-            
-            df_ls = []
-            data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/valid_pred*.csv')
-            for data_fpath in data_fpath_ls:
-                df = pd.read_csv(data_fpath,index_col=0)
-                df_ls.append(df)
-            df_pred = sum(df_ls)/len(df_ls)
-    
-            label_fpath = parent_dir + str(fold_ex_dt[i]) + '/valid_label.csv'
-            df_label = pd.read_csv(label_fpath,index_col=0)
-
-            df_pred_ls.append(df_pred)
-            df_label_ls.append(df_label)
-        df_pred_valid = pd.concat(df_pred_ls)
-        df_label_valid = pd.concat(df_label_ls)
-        
-        df_pred_valid.to_csv(pred_all_fpath)
-        df_label_valid.to_csv(label_all_fpath)
-        print(pred_all_fpath)
 
         
 def main():
@@ -575,7 +314,7 @@ def main():
     random.seed(SEED)
     np.random.seed(SEED)
 
-    mlflow.set_tracking_uri("http://nodelogin02:5000")
+    mlflow.set_tracking_uri("http://nodelogin01:5000")
     experiment = mlflow.set_experiment("lung_fun_gcn")
     
     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
@@ -585,9 +324,12 @@ def main():
     with mlflow.start_run(run_name=str(id), tags={"mlflow.note.content": args.remark}):
         args.id = id  # do not need to pass id seperately to the latter function
         args.gconv_name = 'GATConv' 
-        args.gnorm ='BatchNorm'
+        args.gnorm ='InstanceNorm'
         args.heads = 1
-        args.batch_size = 32
+        args.batch_size = 16
+        args.hidden_channels = 128
+        args.layers_nb = 2
+        
         current_id = id
         tmp_args_dt = vars(args)
         tmp_args_dt['fold'] = 'all'

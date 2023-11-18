@@ -24,6 +24,113 @@ from mlflow import log_params
 # from lung_function.modules.ulip.models.pointbert.point_encoder import PointTransformer
 # from lung_function.modules.ulip.models.pointnext.pointnext import PointNEXT
 import torch.nn.functional as F
+from torch_geometric.nn import global_mean_pool, TopKPooling, ASAPooling
+
+import torch_geometric
+
+
+class FCNet(nn.Module):
+    def __init__(self, in_chn, out_chn, args):
+        super().__init__()
+
+        self.nb_feature = in_chn
+        fc0, fc1 = 1024, 1024
+        args.bn = 'inst'
+        if args.bn == 'inst':
+            self.bn1 = nn.InstanceNorm1d(fc0) 
+            self.bn2 = nn.InstanceNorm1d(fc1)
+        else:
+            self.bn1 = nn.BatchNorm1d(fc0) 
+            self.bn2 = nn.BatchNorm1d(fc1)
+  
+        self.fc1 = nn.Linear(self.nb_feature, fc0)
+        self.drop1 = nn.Dropout(0.4)
+        self.fc2 = nn.Linear(fc0, fc1)
+        self.drop2 = nn.Dropout(0.4)
+        self.fc3 = nn.Linear(fc1, out_chn)
+        
+
+    def forward(self, x):  # x shape: (B, n)
+
+        x = self.drop1(F.relu(self.bn1(self.fc1(x))))
+        x = self.drop2(F.relu(self.bn2(self.fc2(x))))
+        out = self.fc3(x)
+        return out
+    
+    
+class GCN(torch.nn.Module):
+    def __init__(self, in_chn=4, out_chn=4, hidden_channels=64, args=None):
+        super(GCN, self).__init__()
+        torch.manual_seed(12345)
+
+        self.conv_layer_ls = []
+
+        self.Gconv = getattr(torch_geometric.nn, args.gconv_name)
+
+        first_kwargs = {'in_channels': in_chn, 'out_channels': hidden_channels, 'heads': args.heads}
+        mid_kwargs = {'in_channels': hidden_channels, 'out_channels': hidden_channels, 'heads': args.heads}
+        
+        self.GNorm = getattr(torch_geometric.nn, args.gnorm)
+            
+        
+        for idx, i in enumerate(range(args.layers_nb)):  # this section need to be fixed!
+            if args.gconv_name == 'GATConv':
+                gat_chn = hidden_channels # int(hidden_channels *  args.heads * 2**(idx-1))
+                mid_kwargs['out_channels'] = mid_kwargs['in_channels'] = gat_chn
+                last_channels = norm_channels = int(gat_chn * args.heads)
+                # last_channels = norm_channels = hidden_channels
+            else:
+                last_channels = norm_channels = hidden_channels
+            
+            if i == 0:
+                self.conv_layer_ls.append(self.Gconv(**first_kwargs))
+            else:
+
+                self.conv_layer_ls.append(self.Gconv(**mid_kwargs))
+                
+            self.conv_layer_ls.append(nn.ReLU(inplace=True))
+            
+
+                
+            if args.gnorm == 'DiffGroupNorm':
+                norm_layer = self.GNorm(hidden_channels, groups =10)
+            else:
+                norm_layer = self.GNorm(norm_channels)
+                self.conv_layer_ls.append(norm_layer)
+            
+
+            
+        self.extractor = torch.nn.Sequential(*self.conv_layer_ls)
+        self.classifier = FCNet(last_channels, out_chn, args)
+        
+    def forward(self, x, edge_index, batch_idx, out_feature=False):
+        B = x.shape[0]
+        # 1. Obtain node embeddings 
+        # for layer in self.conv_layer_ls:
+        #     x = layer(x, edge_index)
+        for layer in self.extractor:
+            if isinstance(layer, self.Gconv):
+                x = layer(x, edge_index)
+            else:
+                x = layer(x)
+        # x = self.extractor(x, edge_index)
+        # x = self.conv1(x, edge_index)
+        # x = x.relu()
+        # x = self.conv2(x, edge_index)
+        # x = x.relu()
+        # if self.gcv3:
+        #     x = self.conv3(x, edge_index)
+
+        # 2. Readout layer
+        feature = global_mean_pool(x, batch_idx)  # [batch_size, hidden_channels]
+        # 3. Apply a final classifier
+        x = self.classifier(feature)
+        
+        if out_feature:
+            return x, feature
+        return x
+
+
 
 class MLP_reg(nn.Module):
     def __init__(self, num_classes,  fc_ls=[1024, 512, 256]):
@@ -232,7 +339,8 @@ def get_net_3d(name: str,
                 nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(432, 432, kernel_size=( 5, 5, 5), stride=(1, 1, 1), bias=False),
-                nn.AdaptiveAvgPool3d(1) 
+                nn.Conv3d(432, 432, kernel_size=( 5, 4, 4), stride=(1, 1, 1), bias=False),
+                # nn.AdaptiveAvgPool3d(1) 
             )
 
             # net.blocks[-1].pool.pool = nn.AvgPool3d(kernel_size=(7, 7, 7), stride=1, padding=0)  # change from 16, 7, 7 to 7, 7, 7
