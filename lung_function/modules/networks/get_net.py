@@ -232,7 +232,7 @@ def get_net_3d(name: str,
                 nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(432, 432, kernel_size=( 5, 5, 5), stride=(1, 1, 1), bias=False),
-                # nn.AdaptiveAvgPool3d(1) 
+                nn.AdaptiveAvgPool3d(1) 
             )
 
             # net.blocks[-1].pool.pool = nn.AvgPool3d(kernel_size=(7, 7, 7), stride=1, padding=0)  # change from 16, 7, 7 to 7, 7, 7
