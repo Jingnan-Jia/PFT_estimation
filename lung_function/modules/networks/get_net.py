@@ -227,8 +227,14 @@ def get_net_3d(name: str,
             
             net.blocks[0].conv.conv_t = nn.Conv3d(1, 24, kernel_size=( 1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1), bias=False)
 
-            net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
-            
+            # net.blocks[-1].pool.pool = nn.AdaptiveAvgPool3d(1)  # reinitialize the weights
+            net.blocks[-1].pool.pool = nn.Sequential(
+                nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
+                nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
+                nn.Conv3d(432, 432, kernel_size=( 5, 5, 5), stride=(1, 1, 1), bias=False),
+                # nn.AdaptiveAvgPool3d(1) 
+            )
+
             # net.blocks[-1].pool.pool = nn.AvgPool3d(kernel_size=(7, 7, 7), stride=1, padding=0)  # change from 16, 7, 7 to 7, 7, 7
             
             # net.blocks[-1].pool.post_conv = nn.Conv3d(432, 8192, kernel_size=( 1, 1, 1), stride=(1, 1, 1), bias=False) 
