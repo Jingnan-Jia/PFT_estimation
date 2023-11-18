@@ -63,7 +63,7 @@ from lung_function.modules.loss import get_loss
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
 from lung_function.modules.tool import (record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre, 
-                                        ensemble_4folds_validation, ensemble_4folds_testing, 
+                                        ensemble_4folds_validation, ensemble_4folds_testing, txtprocess,
                                         log_metrics_all_folds_average, average_all_folds)
 import optuna
 
@@ -288,6 +288,8 @@ def run(args: Namespace):
 
     for pred_fpath, label_fpath in zip(pred_ls, label_ls):
         r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+        r_p_value = txtprocess(r_p_value)
+
         log_params(r_p_value)
         print('r_p_value:', r_p_value)
 
@@ -375,6 +377,8 @@ def main():
             # add r
             r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
             r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
+            r_p_value = txtprocess(r_p_value)
+
             log_params(r_p_value_ensemble)
 
             # add mae

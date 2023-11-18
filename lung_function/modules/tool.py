@@ -258,7 +258,7 @@ def mre(pred_fpath, label_fpath, ignore_1st_column=True):
 
 
 
-def txtprocess(dt):
+def txtprocess(dt):  # convert FEV_1 from latex to text 
     new_dt = {}
     for k, v in dt.items():
         if "$\mathrm{FEV}_1$" in k:
@@ -268,7 +268,7 @@ def txtprocess(dt):
 
 
 def int2str(batch_id: np.ndarray) -> np.ndarray:
-    """_summary_
+    """convert int to string with fixed width. e.g. 123456 -> 0123456, 12345 -> 0012345
 
     Args:
         batch_id (np.ndarray): _description_
