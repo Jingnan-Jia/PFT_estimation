@@ -156,6 +156,9 @@ class Run:
             data_pcd = next(data_iter_pcd)
             print(f'get a pcd in {time.time() - ttt2}')
         # for data_ct, data_pcd in zip(dataloader_ct, dataloader_pcd):
+            print(data_ct['pat_id'])
+            print('--------------------------------')
+            print(data_pcd['pat_id'])
             assert all(data_ct['pat_id'] == data_pcd['pat_id'])
             
             
