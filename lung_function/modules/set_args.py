@@ -89,8 +89,6 @@ def get_args(jupyter=False):
     parser.add_argument('--set_all_xyz_to_1', help='set all xyz values to 1 to avoid the influence of position of points', type=boolean_string, default='False')
     parser.add_argument('--in_channel', help='add_neighbors information', type=int, default=4)
     parser.add_argument('--scale_r', help='scale_r', type=int, default=100)
-
-
     parser.add_argument('--scale_range', help='scale range', type=str, default='0')  # 0.5-1.5
     parser.add_argument('--shift_range', help='shift range', type=float, default=0)
     parser.add_argument('--PNB', help='points number for each image', type=int, default=28000)  # maximum nmber: 140 000
@@ -116,7 +114,7 @@ def get_args(jupyter=False):
     parser.add_argument('--pretrained_pcd', help='pretrained from pervioius pcd experiments', choices=('vessel_skeleton_pcd'),
                         type=str, default='vessel_skeleton_pcd')
     parser.add_argument('--freeze_encoder', help='freeze encoder', type=boolean_string, default=False)
-    parser.add_argument('--combined_by_add', help='combined_by_add', type=boolean_string, default=True)
+    parser.add_argument('--combined_by_add', help='combined_by_add', type=boolean_string, default=False)
     parser.add_argument('--combined_by_pool', help='combined_by_add', type=boolean_string, default=True)
 
     

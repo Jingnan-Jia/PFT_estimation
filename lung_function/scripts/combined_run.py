@@ -39,7 +39,8 @@ from lung_function.modules.loss import get_loss
 from lung_function.modules.networks import get_net_3d
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
-from lung_function.modules.tool import record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre
+from lung_function.modules.tool import (record_1st, dec_record_cgpu, retrive_run, try_func, int2str, mae, me, mre, txtprocess, ensemble_4folds_validation, ensemble_4folds_testing, 
+                                        log_metrics_all_folds_average, average_all_folds)
 from lung_function.modules.trans import batch_bbox2_3D
 
 args = get_args()
@@ -418,6 +419,8 @@ def run(args: Namespace):
 
     for pred_fpath, label_fpath in zip(pred_ls, label_ls):
         r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+        r_p_value = txtprocess(r_p_value)
+
         log_params(r_p_value)
         print('r_p_value:', r_p_value)
 
@@ -426,130 +429,6 @@ def run(args: Namespace):
         print('icc:', icc_value)
 
     print('Finish all things!')
-
-
-def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='params'):
-    """
-    Average the logs form mlflow for all folds.
-    """
-    current_run = retrive_run(experiment=experiment, reload_id=current_id)
-
-    all_dt = {}
-    for id in id_ls:
-        mlflow_run = retrive_run(experiment=experiment, reload_id=id)
-        if key == 'params':
-            target_dt = mlflow_run.data.params
-            current_dt = current_run.data.params
-        elif key == 'metrics':
-            target_dt = mlflow_run.data.metrics
-            current_dt = current_run.data.metrics
-        else:
-            raise Exception(
-                f"Expected key of 'params' or 'metrics', but got key: {key}")
-
-        for k, v in target_dt.items():
-            if k not in current_dt:  # re-writing parameters in mlflow is not allowed
-                if k not in all_dt:
-                    all_dt[k] = []
-                # this is a value, not a list (see bellow)
-                if not isinstance(all_dt[k], list):
-                    continue
-                try:
-                    all_dt[k].append(float(v))
-                except Exception:
-                    # can not be converted to numbers which can not be averaged
-                    all_dt[k] = v
-
-    all_dt = {k: statistics.mean(v) if isinstance(
-        v, list) else v for k, v in all_dt.items()}
-
-    return all_dt
-
-
-def log_metrics_all_folds_average(id_ls: list, id: int, experiment):
-    """
-    Get the 4 folds metrics and parameters
-    Average them
-    Log average values to the parent mlflow
-    """
-    # average parameters
-    param_dt = average_all_folds(id_ls, id, experiment, key='params')
-    if len(param_dt) < 100:
-        log_params(param_dt)
-
-    elif len(param_dt) >= 100 and len(param_dt) < 200:
-        dt_1 = {k: param_dt[k] for i, k in enumerate(param_dt) if i < 100}
-        dt_2 = {k: param_dt[k] for i, k in enumerate(param_dt) if i >= 100}
-        log_params(dt_1)
-        log_params(dt_2)
-    else:
-        raise Exception(
-            f"Our logging request can contain at most 200 params. Got {len(param_dt)} params")
-
-    # average metrics
-    metric_dt = average_all_folds(id_ls, id, experiment, key='metrics')
-    log_metrics(metric_dt, 0)
- 
-
-
-def ensemble_4folds_testing(fold_ex_dt):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-
-    dir0 = parent_dir + str(fold_ex_dt[0])
-    ave_fpath = dir0  + '/test_pred.csv'
-    label_fpath = dir0  + '/test_label.csv'
-
-    output_file_path = Path(ave_fpath)
-    output_file_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    df_ls = []
-    for i in [1,2,3,4]:
-        data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/test_pred*.csv')
-        for data_fpath in data_fpath_ls:
-            df = pd.read_csv(data_fpath,index_col=0)
-            df_ls.append(df)
-            
-    df_ave = sum(df_ls)/len(df_ls)
-    df_ave.to_csv(ave_fpath)
-    print(ave_fpath)
-    
-    label_fpath_fold1 = parent_dir + str(fold_ex_dt[i]) + '/test_label.csv'
-    df_label = pd.read_csv(label_fpath_fold1,index_col=0)
-    df_label.to_csv(label_fpath)
-    
-        
-def ensemble_4folds_validation(fold_ex_dt_ls):
-    parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
-    if type(fold_ex_dt_ls) is not list:
-        fold_ex_dt_ls = [fold_ex_dt_ls]
-    for fold_ex_dt in fold_ex_dt_ls:
-        dir0 = parent_dir + str(fold_ex_dt[0])
-        pred_all_fpath = dir0  + '/valid_pred.csv'
-        label_all_fpath = dir0  + '/valid_label.csv'
-        output_file_path = Path(pred_all_fpath)
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        df_pred_ls, df_label_ls = [], []
-        for i in [1,2,3,4]:
-            
-            df_ls = []
-            data_fpath_ls = glob(parent_dir + str(fold_ex_dt[i]) + '/valid_pred*.csv')
-            for data_fpath in data_fpath_ls:
-                df = pd.read_csv(data_fpath,index_col=0)
-                df_ls.append(df)
-            df_pred = sum(df_ls)/len(df_ls)
-    
-            label_fpath = parent_dir + str(fold_ex_dt[i]) + '/valid_label.csv'
-            df_label = pd.read_csv(label_fpath,index_col=0)
-
-            df_pred_ls.append(df_pred)
-            df_label_ls.append(df_label)
-        df_pred_valid = pd.concat(df_pred_ls)
-        df_label_valid = pd.concat(df_label_ls)
-        
-        df_pred_valid.to_csv(pred_all_fpath)
-        df_label_valid.to_csv(label_all_fpath)
-        print(pred_all_fpath)
 
         
 def main():
@@ -622,6 +501,7 @@ def main():
             # add r
             r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
             r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
+            r_p_value_ensemble = txtprocess(r_p_value_ensemble)
             log_params(r_p_value_ensemble)
 
             # add mae
