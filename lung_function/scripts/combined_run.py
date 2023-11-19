@@ -445,7 +445,7 @@ def main():
     np.random.seed(SEED)
 
     mlflow.set_tracking_uri("http://nodelogin01:5000")
-    experiment = mlflow.set_experiment("lung_fun_db15")
+    experiment = mlflow.set_experiment("pft_combined")
     
     RECORD_FPATH = f"{Path(__file__).absolute().parent}/results/record.log"
     # write super parameters from set_args.py to record file.
