@@ -365,10 +365,10 @@ def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'tes
         if 'train' in datasetmode:
             if args.balanced_sampler:
                 sampler = sampler_by_disext(tr_data, ref = 'DLCOc_SB')  # only for training dataset
+                shuffle = False
             else:
                 sampler = None
-
-            shuffle = True
+                shuffle = True
         else:
             shuffle = False
             sampler = None
