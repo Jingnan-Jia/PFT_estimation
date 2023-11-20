@@ -339,7 +339,8 @@ def get_net_3d(name: str,
                 nn.Conv3d(432, 432, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(432, 512, kernel_size=( 5, 1, 1), stride=(5, 1, 1), bias=False),
                 nn.Conv3d(512, 1024, kernel_size=( 5, 5, 5), stride=(1, 1, 1), bias=False),
-                nn.Conv3d(1024, 2048, kernel_size=( 5, 4, 4), stride=(1, 1, 1), bias=False),
+                nn.Conv3d(1024, 2048, kernel_size=( 3, 3, 3), stride=(1, 1, 1), bias=False),
+                nn.Conv3d(2048, 2048, kernel_size=( 3, 2, 2), stride=(0, 0, 0), bias=False),
                 # nn.AdaptiveAvgPool3d(1) 
             )
 
