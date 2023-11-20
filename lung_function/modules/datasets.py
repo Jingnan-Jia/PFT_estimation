@@ -5,7 +5,7 @@
 import itertools
 import json
 import os
-from lung_function.modules.trans import LoadDatad, SaveDatad, RandomCropForegroundd, RemoveTextd, LoadPointCloud, SampleShuffled, LoadGraphd
+from lung_function.modules.trans import LoadDatad, SaveDatad, RandomCropForegroundd, RemoveTextd, LoadPointCloud, SampleShuffled, LoadGraphd, RemoveDuplicatedd
 from sklearn.model_selection import KFold
 import monai
 from torch.utils.data import Dataset
@@ -149,7 +149,8 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
             # ('pat_id', 'image', 'lung_mask', 'origin', 'spacing', 'label')
     xforms.extend([CastToTyped(keys=inputmodes, dtype=np.float32),
                     ToTensord(keys=inputmodes),
-                    RemoveTextd(keys=['fpath_'+i for i in inputmodes])])
+                    RemoveTextd(),
+                    RemoveDuplicatedd(keys = ['label', 'pat_id'])])
             
     transform = monai.transforms.Compose(xforms)
 

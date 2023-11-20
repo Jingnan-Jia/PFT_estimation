@@ -55,6 +55,26 @@ log_metric = try_func(log_metric)
 log_metrics = try_func(log_metrics)
 
 
+def process_dict(dt):
+    def process_keys(dt, key_suffix):
+        # 找到所有以 key_suffix 结尾的键
+        relevant_keys = [k for k in dt if k.endswith(key_suffix)]
+        if len(relevant_keys) > 1:
+            # 检查所有相关值是否相等
+            first_value = dt[relevant_keys[0]]
+            if all(dt[k] == first_value for k in relevant_keys):
+                # 删除所有相关键，并添加一个新键
+                for k in relevant_keys:
+                    del dt[k]
+                dt[key_suffix] = first_value
+            else:
+                # 值不相等时抛出错误
+                raise ValueError(f"Values for keys ending with '{key_suffix}' are not equal.")
+        elif len(relevant_keys) == 1:
+            # 仅有一个键，重命名该键
+            dt[key_suffix] = dt.pop(relevant_keys[0])
+            
+            
 def average_all_folds(id_ls: Sequence[int], current_id: int, experiment, key='params'):
     """
     Average the logs form mlflow for all folds.

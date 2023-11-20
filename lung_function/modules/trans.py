@@ -74,18 +74,50 @@ def farthest_point_sample(xyz, npoint):
     centroids = centroids[0] # remove the first batch dimension again
     return centroids
 
+class RemoveDuplicatedd(MapTransform):
+    def __init__(self, keys):
+        super().__init__(keys, allow_missing_keys=True)  # not necessary
 
+        # self.keys = ['label', 'pat_id']
+
+    def __call__(self, data: TransInOut) -> TransInOut:
+        d = data
+        def process_keys(dt, prefix):
+            # 找到所有以给定前缀开头的键
+            keys = [k for k in dt if k.startswith(prefix)]
+
+            # 检查这些键的数量
+            if len(keys) > 1:
+                # 检查所有这些键的值是否相等
+                first_value = dt[keys[0]]
+                if all(dt[k] == first_value for k in keys):
+                    # 如果相等，删除这些键并添加一个新的键
+                    for k in keys:
+                        del dt[k]
+                    dt[prefix] = first_value
+                else:
+                    # 如果不相等，报错
+                    raise ValueError(f"Values for keys starting with '{prefix}' are not equal.")
+            elif len(keys) == 1:
+                # 如果只有一个键，直接修改键名
+                dt[prefix] = dt.pop(keys[0])
+        for key in self.keys:
+            process_keys(d, key)
+                        
+        return d
 class RemoveTextd(MapTransform):
     """
     Remove the text to avoid the Error: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U80
     """
-    def __init__(self, keys):
-        super().__init__(keys, allow_missing_keys=True)
+    def __init__(self):
+        super().__init__('key', allow_missing_keys=True)  # not necessary
+
 
     def __call__(self, data: TransInOut) -> TransInOut:
         d = data
-        for key in self.keys:
-            del d[key] 
+        for key in list(d.keys()):
+            if 'path' in key:
+                del d[key]
         return d
  
 
@@ -256,14 +288,20 @@ class LoadPointCloud(MapTransform):
                 key_label = 'label_' + key
                 y = np.array([data[i] for i in self.target])
                 file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
-                data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+                
+                if "ScanDate" in list(data.keys()):  # this is the first transform, I need to initiate a data_dt
+                    new_data = {k:v for k, v in data.items() if "fpath" in k}  # select those paths, which may be useful for the following transformations
+                else:
+                    new_data = data
+                
+                new_data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
                             key: xyzr_mm.astype(np.float32),
                             key_origin: xyzr['origin'],
                             key_spacing: xyzr['spacing'],
                             key_label: y.astype(np.float32),
                             key_fpath: np.array([fpath])})
 
-        return data
+        return new_data
 
 
 
@@ -284,11 +322,17 @@ class LoadGraphd(MapTransform):
                 
                 # y = np.array([data[i] for i in self.target])
                 file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
-                data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+                
+                if "ScanDate" in list(data.keys()):  # this is the first transform, I need to initiate a data_dt
+                    new_data = {k:v for k, v in data.items() if "fpath" in k}  # select those paths, which may be useful for the following transformations
+                else:
+                    new_data = data
+                
+                new_data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
                             key: one_graph,                           
                             key_fpath: np.array([fpath])})
 
-        return data
+        return new_data
     
 
 def convertfpath(ori_path):
@@ -377,20 +421,24 @@ class LoadDatad(MapTransform):
         key_origin = 'origin_' + key
         key_spacing = 'spacing_' + key
         key_label = 'label_' + key
-        data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+        
+        if "ScanDate" in list(data.keys()):  # this is the first transform, I need to initiate a data_dt
+            new_data = {k:v for k, v in data.items() if "fpath" in k}  # select those paths, which may be useful for the following transformations
+        else:
+            new_data = data
+            
+        new_data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
                     key: x.astype(np.float32),
                     key_origin: ori.astype(np.float32),
                     key_spacing: sp.astype(np.float32),
                     key_label: y.astype(np.float32),
-                    key_fpath: np.array([fpath])})
-        
-
+                    key_fpath: np.array([fpath])})        
                 
         if self.crop_foreground:
 
             lung_fpath = convertfpath(fpath)
             lung_mask = load_itk(lung_fpath, require_ori_sp=False)  # shape order: z, y, x
-            data['lung_mask'] = lung_mask.astype(np.float32)
+            new_data['lung_mask'] = lung_mask.astype(np.float32)
         # print('load a image')
         # print("cliping ... ")
         # x[x < -1500] = -1500
@@ -403,7 +451,7 @@ class LoadDatad(MapTransform):
         # data['PFT Date'] = str(data['PFT Date'])
 
 
-        return data
+        return new_data
 
 def batch_bbox2_3D(batch_img):
     """img.shape: n,1,z,y,z

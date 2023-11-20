@@ -38,7 +38,7 @@ from lung_function.modules.loss import get_loss
 from lung_function.modules.networks import get_net_3d
 from lung_function.modules.path import PFTPath
 from lung_function.modules.set_args import get_args
-from lung_function.modules.tool import (record_1st, dec_record_cgpu, retrive_run, try_func, int2str, txtprocess, log_all_metrics)
+from lung_function.modules.tool import (record_1st, dec_record_cgpu, retrive_run, try_func, int2str, txtprocess, log_all_metrics, process_dict)
 from lung_function.modules.trans import batch_bbox2_3D
 
 args = get_args()
@@ -60,7 +60,8 @@ def reinit_fc(net, nb_fc0, fc1_nodes, fc2_nodes, num_classes):
     return net
 
 
-
+    
+    
 class Run:
     """A class which has its dataloader and step_iteration. It is like Lighting. 
     """
@@ -315,7 +316,7 @@ class Run:
                         pred, trans_feat = self.net(batch_x)
                     else:
                         pred = self.net(batch_x)
-                print('pred',pred )
+                # print('pred',pred )
                 if save_pred:
                     head = ['pat_id']
                     head.extend(self.target)
