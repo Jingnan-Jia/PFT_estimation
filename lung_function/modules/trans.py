@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 from scipy.ndimage.morphology import binary_dilation
 from monai.transforms import MapTransform, Transform, RandomizableTransform
+import pickle
 
 TransInOut = Dict[Hashable, Optional[Union[np.ndarray, torch.Tensor, str, int]]]
 # Note: all transforms here must inheritage Transform, Transform, or RandomTransform.
@@ -100,7 +101,7 @@ class SaveDatad(MapTransform):
     def __call__(self, data: TransInOut) -> TransInOut:
         d = data
         for key in self.keys:
-            fpath = f"{self.pad_truncated_dir}/{Path(str(d['fpath'][0])).name}"
+            fpath = f"{self.pad_truncated_dir}/{Path(str(d['fpath_'+key][0])).name}"
             save_itk(filename=fpath, scan=d[key][0], origin=list(d['origin'].astype(np.float)), spacing=list(d['spacing'].astype(np.float)), dtype=float)
             print(f"successfully save pad_truncated data to {fpath}")
             if self.crop_foreground:
@@ -147,37 +148,39 @@ class SampleShuffled(MapTransform, RandomizableTransform):
     def __call__(self, data: TransInOut) -> TransInOut:
         # print("running random shu")
         for key in self.keys:  
-            # if self.total_shuffle:  # shuffle all points
-            #     np.random.shuffle(data[key])    # shuffle data inplace
+            if 'pcd' in key: 
+                # if self.total_shuffle:  # shuffle all points
+                #     np.random.shuffle(data[key])    # shuffle data inplace
 
-            # if self.repeated_sample:
-            #     tmp_ls = []
-            #     for row in data[key]:  # check three coordinates are integers
-            #         if not row[0]%1 and not row[1]%1 and not row[2]%1:  
-            #             tmp_ls.append(row)
-            #     data[key] = np.array(tmp_ls)
-            #     choice = np.random.choice(len(data[key]), self.PNB, replace=True)
-            #     data[key] = data[key][choice, :]
-            # else:             
-            big_nb = 1000
-            big_vessels = data[key][:big_nb]  # first 1 k points is enough to represent the big vessels
-            choice = np.random.choice(len(data[key][big_nb:]), self.PNB-big_nb, replace=self.repeated_sample)
-            others = data[key][choice]
-            all =  np.concatenate((big_vessels, others), axis=0)
-            np.random.shuffle(all)
-            data[key] = all
+                # if self.repeated_sample:
+                #     tmp_ls = []
+                #     for row in data[key]:  # check three coordinates are integers
+                #         if not row[0]%1 and not row[1]%1 and not row[2]%1:  
+                #             tmp_ls.append(row)
+                #     data[key] = np.array(tmp_ls)
+                #     choice = np.random.choice(len(data[key]), self.PNB, replace=True)
+                #     data[key] = data[key][choice, :]
+                # else:             
+                big_nb = 1000
+                big_vessels = data[key][:big_nb]  # first 1 k points is enough to represent the big vessels
+                choice = np.random.choice(len(data[key][big_nb:]), self.PNB-big_nb, replace=self.repeated_sample)
+                others = data[key][choice]
+                all =  np.concatenate((big_vessels, others), axis=0)
+                np.random.shuffle(all)
+                data[key] = all
+                
+                # choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
+                # data[key] = data[key][choice]  # sample data
+
+                # if self.sub_shuffle:  # shuffle the sub data
+                #     np.random.shuffle(data[key])    # shuffle data inplace
             
-            # choice = np.random.choice(len(data[key]), self.PNB, replace=self.repeated_sample)
-            # data[key] = data[key][choice]  # sample data
-
-            # if self.sub_shuffle:  # shuffle the sub data
-            #     np.random.shuffle(data[key])    # shuffle data inplace
-           
         return data
 
 class LoadPointCloud(MapTransform):
     def __init__(self, keys, target, position_center_norm, PNB, repeated_sample, FPS_input=None, set_all_r_to_1=False, set_all_xyz_to_1=False, in_channel=False, scale_r=100):
         super().__init__(keys, allow_missing_keys=True,)
+        self.keys = keys  # （'fpath_pcd', )
         self.target = [i.lstrip() for i in target.split('-')]
         self.position_center_norm = position_center_norm
         self.PNB = PNB
@@ -190,72 +193,103 @@ class LoadPointCloud(MapTransform):
 
 
     def __call__(self, data: TransInOut) -> TransInOut:
-        fpath = data['fpath']
-        print(f"loading {fpath}")
-        xyzr = pd.read_pickle(fpath)
-        if self.in_channel>4:
-            data_key = 'data_wt_neighbors'
-        else:
-            data_key  = 'data'
-        
-        if self.repeated_sample:
-            # remove the interpolated points
-            tmp_ls = []
-            for row in xyzr[data_key]:  # check three coordinates are integers
-                if not row[0]%1 and not row[1]%1 and not row[2]%1:  
-                    tmp_ls.append(row)
-            xyzr[data_key] = np.array(tmp_ls)
-
-        # choice = np.random.choice(len(xyzr['data']), self.PNB, replace=self.repeated_sample)
-        # xyzr['data'] = xyzr['data'][choice]  # sample data
-
-        xyz_mm = xyzr[data_key][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
-        if self.position_center_norm:
-            xyz_mm -= xyz_mm.mean(axis=0)
-        xyzr_mm = np.concatenate((xyz_mm, xyzr[data_key][:,3:]), axis=1)
-        if self.set_all_r_to_1:
-            if xyzr_mm.shape[-1]==3:
-                xyzr_mm[:, -1] = 1
-            elif xyzr_mm.shape[-1]==12:
-                xyzr_mm[:, 3] = 1
-                xyzr_mm[:, 7] = 1
-                xyzr_mm[:, 11] = 1
+        for key in self.keys:
+            if 'pcd' in key:
+                key_fpath = 'fpath_' + key     
+                fpath = data[key_fpath] 
+                print(f"loading {fpath}")
+                xyzr = pd.read_pickle(fpath)
+                if self.in_channel>4:
+                    data_key = 'data_wt_neighbors'
+                else:
+                    data_key  = 'data'
                 
-        if self.set_all_xyz_to_1:
-            if xyzr_mm.shape[-1]==3:
-                xyzr_mm[:, :-1] = 1
-            elif xyzr_mm.shape[-1]==12:
-                xyzr_mm[:, :3] = 1
-                xyzr_mm[:, 4:7] = 1
-                xyzr_mm[:, 8:11] = 1
-        if self.scale_r:
-            if xyzr_mm.shape[-1]==3:
-                xyzr_mm[:, -1] *= self.scale_r
-            elif xyzr_mm.shape[-1]==12:
-                xyzr_mm[:, 3] *= self.scale_r
-                xyzr_mm[:, 7] *= self.scale_r
-                xyzr_mm[:, 11] *= self.scale_r
+                if self.repeated_sample:
+                    # remove the interpolated points
+                    tmp_ls = []
+                    for row in xyzr[data_key]:  # check three coordinates are integers
+                        if not row[0]%1 and not row[1]%1 and not row[2]%1:  
+                            tmp_ls.append(row)
+                    xyzr[data_key] = np.array(tmp_ls)
 
-        
-        # 按照最后一列进行排序
-        sorted_indices = np.argsort(xyzr_mm[:, -1])
+                # choice = np.random.choice(len(xyzr['data']), self.PNB, replace=self.repeated_sample)
+                # xyzr['data'] = xyzr['data'][choice]  # sample data
 
-        # 使用排序后的索引重新排列数组的行
-        xyzr_mm = xyzr_mm[sorted_indices]
+                xyz_mm = xyzr[data_key][:,:3] * xyzr['spacing']  # convert voxel location to physical mm
+                if self.position_center_norm:
+                    xyz_mm -= xyz_mm.mean(axis=0)
+                xyzr_mm = np.concatenate((xyz_mm, xyzr[data_key][:,3:]), axis=1)
+                if self.set_all_r_to_1:
+                    if xyzr_mm.shape[-1]==3:
+                        xyzr_mm[:, -1] = 1
+                    elif xyzr_mm.shape[-1]==12:
+                        xyzr_mm[:, 3] = 1
+                        xyzr_mm[:, 7] = 1
+                        xyzr_mm[:, 11] = 1
+                        
+                if self.set_all_xyz_to_1:
+                    if xyzr_mm.shape[-1]==3:
+                        xyzr_mm[:, :-1] = 1
+                    elif xyzr_mm.shape[-1]==12:
+                        xyzr_mm[:, :3] = 1
+                        xyzr_mm[:, 4:7] = 1
+                        xyzr_mm[:, 8:11] = 1
+                if self.scale_r:
+                    if xyzr_mm.shape[-1]==3:
+                        xyzr_mm[:, -1] *= self.scale_r
+                    elif xyzr_mm.shape[-1]==12:
+                        xyzr_mm[:, 3] *= self.scale_r
+                        xyzr_mm[:, 7] *= self.scale_r
+                        xyzr_mm[:, 11] *= self.scale_r
 
-        # xyzr_mm = sorted(xyzr_mm, key = lambda a_entry: a_entry[-1])
-        
-        y = np.array([data[i] for i in self.target])
-        file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
-        new_data = {'pat_id': np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
-                    self.keys[0]: xyzr_mm.astype(np.float32),
-                    'origin': xyzr['origin'],
-                    'spacing': xyzr['spacing'],
-                    'label': y.astype(np.float32),
-                    'fpath': np.array([fpath])}
+                
+                # 按照最后一列进行排序
+                sorted_indices = np.argsort(xyzr_mm[:, -1])
 
-        return new_data
+                # 使用排序后的索引重新排列数组的行
+                xyzr_mm = xyzr_mm[sorted_indices]
 
+                # xyzr_mm = sorted(xyzr_mm, key = lambda a_entry: a_entry[-1])
+                key_pat_id = 'pat_id_'  + key   
+                key_origin = 'origin_' + key
+                key_spacing = 'spacing_' + key
+                key_label = 'label_' + key
+                y = np.array([data[i] for i in self.target])
+                file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
+                data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+                            key: xyzr_mm.astype(np.float32),
+                            key_origin: xyzr['origin'],
+                            key_spacing: xyzr['spacing'],
+                            key_label: y.astype(np.float32),
+                            key_fpath: np.array([fpath])})
+
+        return data
+
+
+
+class LoadGraphd(MapTransform):
+    def __init__(self, keys, ):
+        super().__init__(keys)
+        self.keys = keys  # （'graph_vessel', )
+
+    def __call__(self, data: TransInOut) -> TransInOut:
+        for key in self.keys:
+            if 'graph' in key:
+                key_fpath = 'fpath_' + key    
+                key_pat_id = 'pat_id_'  + key               
+                fpath = data[key_fpath] 
+                print(f"loading {fpath}")
+                with open(fpath, 'rb') as f:
+                        one_graph = pickle.load(f)
+                
+                # y = np.array([data[i] for i in self.target])
+                file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
+                data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+                            key: one_graph,                           
+                            key_fpath: np.array([fpath])})
+
+        return data
+    
 
 def convertfpath(ori_path):
     if 'GcVessel' in ori_path:
@@ -282,9 +316,12 @@ class LoadDatad(MapTransform):
         self.target = [i.lstrip() for i in target.split('-')]
         self.crop_foreground = crop_foreground
         self.inputmode = inputmode
+        self.keys = keys
 
     def __call__(self, data: TransInOut) -> TransInOut:
-        fpath = data['fpath']
+        key = self.keys
+        key_fpath = 'fpath_'+ key
+        fpath = data[key_fpath]
         print(f"loading {fpath}")
         x, ori, sp = load_itk(fpath, require_ori_sp=True)  # shape order: z, y, x
         if 'ct_masked_by_torso' == self.inputmode:
@@ -336,20 +373,24 @@ class LoadDatad(MapTransform):
             raise Exception('the patient has empty target label')
         # print(f"{fpath}, {y}")
         file_id = fpath.split(".nii.gz")[0].split('SSc_patient_')[-1].split('_')[0]
-        new_data = {'pat_id': np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
-                    self.keys[0]: x.astype(np.float32),
-                    'origin': ori.astype(np.float32),
-                    'spacing': sp.astype(np.float32),
-                    'label': y.astype(np.float32),
-                    'fpath': np.array([fpath])}
-        # new_data = {s
-        #             'image': x.astype(np.float32),
-        #             'label': y.astype(np.float32)}
+        key_pat_id = 'pat_id_'  + key   
+        key_origin = 'origin_' + key
+        key_spacing = 'spacing_' + key
+        key_label = 'label_' + key
+        data.update({key_pat_id: np.array([int(file_id)]),  # Note: save it as a array. extract the patient id as a int, otherwise, error occured: TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <U21
+                    key: x.astype(np.float32),
+                    key_origin: ori.astype(np.float32),
+                    key_spacing: sp.astype(np.float32),
+                    key_label: y.astype(np.float32),
+                    key_fpath: np.array([fpath])})
+        
+
+                
         if self.crop_foreground:
 
             lung_fpath = convertfpath(fpath)
             lung_mask = load_itk(lung_fpath, require_ori_sp=False)  # shape order: z, y, x
-            new_data['lung_mask'] = lung_mask.astype(np.float32)
+            data['lung_mask'] = lung_mask.astype(np.float32)
         # print('load a image')
         # print("cliping ... ")
         # x[x < -1500] = -1500
@@ -362,7 +403,7 @@ class LoadDatad(MapTransform):
         # data['PFT Date'] = str(data['PFT Date'])
 
 
-        return new_data
+        return data
 
 def batch_bbox2_3D(batch_img):
     """img.shape: n,1,z,y,z

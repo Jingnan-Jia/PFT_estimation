@@ -5,7 +5,7 @@
 import itertools
 import json
 import os
-from lung_function.modules.trans import LoadDatad, SaveDatad, RandomCropForegroundd, RemoveTextd, LoadPointCloud, SampleShuffled
+from lung_function.modules.trans import LoadDatad, SaveDatad, RandomCropForegroundd, RemoveTextd, LoadPointCloud, SampleShuffled, LoadGraphd
 from sklearn.model_selection import KFold
 import monai
 from torch.utils.data import Dataset
@@ -92,72 +92,65 @@ def xformd(mode, args, pad_truncated_dir='tmp'):
     target = args.target
     crop_foreground = args.crop_foreground
     pad_ratio = args.pad_ratio
-    inputmode = args.input_mode
+    # inputmode = args.input_mode
     PNB = args.PNB
 
     post_pad_size = [int(i * pad_ratio) for i in [z_size, y_size, x_size]]
-    keys = (inputmode, )
-    if inputmode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
-        
-        xforms = [LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
-        repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1, 
-        set_all_xyz_to_1=args.set_all_xyz_to_1, in_channel=args.in_channel, scale_r=args.scale_r),
-                  SampleShuffled(
-                      keys=keys, PNB=PNB, repeated_sample=args.repeated_sample),
-                  # ShiftCoordinated(keys=keys, position_center_norm=args.position_center_norm),
-                  CastToTyped(keys=keys, dtype=np.float32),
-                  ToTensord(keys=keys),
-                  RemoveTextd(keys='fpath')]
+    inputmodes = args.input_mode.split('-')  # split 'ct-pcd_vessel' to ['ct', 'pcd_vessel]
+    xforms = []
+    for inputmode in inputmodes:
+        keys = (inputmode, )
+        if inputmode in ('vessel_skeleton_graph'):
+            xforms.append(LoadGraphd(keys=keys))
+            
+        elif inputmode in ['vessel_skeleton_pcd', 'lung_mask_pcd']:
+            
+            xforms.extend([LoadPointCloud(keys=keys, target=target, position_center_norm=args.position_center_norm, PNB=PNB, 
+            repeated_sample=args.repeated_sample, FPS_input=args.FPS_input, set_all_r_to_1=args.set_all_r_to_1, 
+            set_all_xyz_to_1=args.set_all_xyz_to_1, in_channel=args.in_channel, scale_r=args.scale_r),
+                    SampleShuffled( keys=keys, PNB=PNB, repeated_sample=args.repeated_sample),
+                    # ShiftCoordinated(keys=keys, position_center_norm=args.position_center_norm),
+                    ])
 
-    else:
-        if inputmode == 'vessel':
-            min_value, max_value = 0, 1
-        elif 'ct' in inputmode:
-            min_value, max_value = -1500, 1500
-        elif inputmode == 'lung_masks':
-            min_value, max_value = 0, 1
         else:
-            raise Exception(f"wrong input mode: {inputmode}")
-        if crop_foreground:
-            keys = keys + ('lung_mask',)
-        global PAD_DONE
-        if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
-            PAD_DONE = False
+            if inputmode == 'vessel':
+                min_value, max_value = 0, 1
+            elif 'ct' in inputmode:
+                min_value, max_value = -1500, 1500
+            elif inputmode == 'lung_mask':
+                min_value, max_value = 0, 1
+            else:
+                raise Exception(f"wrong input mode: {inputmode}")
+            if crop_foreground:
+                keys = keys + ('lung_mask',)
+
             if not os.path.isdir(pad_truncated_dir):
                 os.makedirs(pad_truncated_dir)
-            xforms = [LoadDatad(keys=keys[0], target=target, crop_foreground=crop_foreground,
-                                inputmode=inputmode), AddChanneld(keys=keys)]
-            xforms.append(SpatialPadd(
-                keys=keys[0], spatial_size=post_pad_size, mode='constant', constant_values=min_value))
+            xforms.extend([LoadDatad(keys=keys[0], target=target, crop_foreground=crop_foreground, inputmode=inputmode), 
+                            AddChanneld(keys=keys),
+                            SpatialPadd( keys=keys[0], spatial_size=post_pad_size, mode='constant', constant_values=min_value)
+                            ])
             if crop_foreground:
-                xforms.append(SpatialPadd(
-                    keys=keys[1], spatial_size=post_pad_size, mode='constant', constant_values=0))
-            xforms.append(ScaleIntensityRanged(
-                keys=keys[0], a_min=min_value, a_max=max_value, b_min=-1, b_max=1, clip=True))
-            # xforms.append(SaveDatad(
-            #     keys=keys[0], pad_truncated_dir=pad_truncated_dir, crop_foreground=crop_foreground, inputmode=inputmode))
-        else:  # TODO: not implemented yet
-            xforms = [LoadDatad(
-                target=target, crop_foreground=crop_foreground), AddChanneld(keys=keys)]
-        # xforms.append()
-        if mode == 'train':
-            if crop_foreground:
-                xforms.extend([RandomCropForegroundd(keys=keys, roi_size=[
-                              z_size, y_size, x_size], source_key='lung_mask')])
+                xforms.append(SpatialPadd( keys=keys[1], spatial_size=post_pad_size, mode='constant', constant_values=0))
+            xforms.append(ScaleIntensityRanged( keys=keys[0], a_min=min_value, a_max=max_value, b_min=-1, b_max=1, clip=True))
+
+            # xforms.append()
+            if mode == 'train':
+                if crop_foreground:
+                    xforms.extend([RandomCropForegroundd(keys=keys, roi_size=[ z_size, y_size, x_size], source_key='lung_mask')])
+                else:
+                    xforms.extend([RandSpatialCropd(keys=keys, roi_size=[ z_size, y_size, x_size], random_center=True, random_size=False)])
+                # xforms.extend([RandGaussianNoised(keys=keys, prob=0.5, mean=0, std=0.01)])
             else:
-                xforms.extend([RandSpatialCropd(keys=keys, roi_size=[
-                              z_size, y_size, x_size], random_center=True, random_size=False)])
-            # xforms.extend([RandGaussianNoised(keys=keys, prob=0.5, mean=0, std=0.01)])
-        else:
-            xforms.extend(
-                [CenterSpatialCropd(keys=keys, roi_size=[z_size, y_size, x_size])])
+                xforms.extend( [CenterSpatialCropd(keys=keys, roi_size=[z_size, y_size, x_size])])
 
-        # xforms.append(SaveDatad(pad_truncated_dir+"/patches_examples/" + mode))
+            # xforms.append(SaveDatad(pad_truncated_dir+"/patches_examples/" + mode))
 
-        # ('pat_id', 'image', 'lung_mask', 'origin', 'spacing', 'label')
-        xforms.extend([CastToTyped(keys=keys, dtype=np.float32),
-                       ToTensord(keys=keys),
-                       RemoveTextd(keys='fpath')])
+            # ('pat_id', 'image', 'lung_mask', 'origin', 'spacing', 'label')
+    xforms.extend([CastToTyped(keys=inputmodes, dtype=np.float32),
+                    ToTensord(keys=inputmodes),
+                    RemoveTextd(keys=['fpath_'+i for i in inputmodes])])
+            
     transform = monai.transforms.Compose(xforms)
 
     return transform
@@ -288,34 +281,42 @@ def all_loaders(data_dir, label_fpath, args, datasetmode=('train', 'valid', 'tes
         # nparray is easy for kfold split
         data = np.array(label_excel.to_dict('records'))
         for d in data:
-            if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
-                d['fpath'] = data_dir + '/' + d['subjectID'] + \
-                    '_skeleton_coordinates140000_wt_neighbors.pt'
-            elif args.input_mode == 'lung_mask_pcd':  # do not need to chare if padding or not
-                d['fpath'] = data_dir + '/' + d['subjectID'] + \
-                    '_LungMask_coordinates.pt'
-            else:
-                if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
-                    if args.input_mode == "vessel":
-                        d['fpath'] = data_dir + '/' + \
-                            d['subjectID'] + '_GcVessel.nii.gz'
-                    else:
-                        d['fpath'] = data_dir + '/' + d['subjectID'] + '.nii.gz'
+            d['fpath_lung_mask_pcd'] = data_dir + '/' + d['subjectID'] + '_LungMask_coordinates.pt'
+            d['fpath_vessel_skeleton_pcd'] = data_dir.replace('iso1.5', 'ori_resolution') + '/' + d['subjectID'] + '_skeleton_coordinates140000.pt'
+            d['fpath_vessel_skeleton_graph'] = d['fpath_vessel_skeleton_pcd'].replace('.pt', '_graph.pt')
+            d['fpath_ct'] = data_dir + '/' + d['subjectID'] + '.nii.gz'
+            d['fpath_lung_mask'] = d['fpath_ct'].replace('.nii.gz', '_LungMask.nii.gz')
+            d['fpath_vessel'] = data_dir + '/' + d['subjectID'] + '_GcVessel.nii.gz'
 
-                        # # raise Exception(f"wrong input mode: {args.input_mode}")
-                        # pass
-                else:  # TODO: not implemented yet
-                    if args.input_mode == "vessel":
-                        d['fpath'] = pad_truncated_dir + '/' + \
-                            d['subjectID'] + '_GcVessel.nii.gz'
-                    elif args.input_mode == "ct":
-                        d['fpath'] = pad_truncated_dir + \
-                            '/' + d['subjectID'] + '.nii.gz'
-                    elif "ct_masked_by_vessel" in args.input_mode:
-                        d['fpath'] = pad_truncated_dir + \
-                            '/' + d['subjectID'] + '.nii.gz'
-                    else:
-                        raise Exception(f"wrong input mode: {args.input_mode}")
+                    
+            # if args.input_mode == 'vessel_skeleton_pcd':  # do not need to chare if padding or not
+            #     d['fpath'] = data_dir + '/' + d['subjectID'] + \
+            #         '_skeleton_coordinates140000_wt_neighbors.pt'
+            # elif args.input_mode == 'lung_mask_pcd':  # do not need to chare if padding or not
+            #     d['fpath'] = data_dir + '/' + d['subjectID'] + \
+            #         '_LungMask_coordinates.pt'
+            # else:
+            #     if not PAD_DONE or not os.path.isdir(pad_truncated_dir):
+            #         if args.input_mode == "vessel":
+            #             d['fpath'] = data_dir + '/' + \
+            #                 d['subjectID'] + '_GcVessel.nii.gz'
+            #         else:
+            #             d['fpath'] = data_dir + '/' + d['subjectID'] + '.nii.gz'
+
+            #             # # raise Exception(f"wrong input mode: {args.input_mode}")
+            #             # pass
+            #     else:  # TODO: not implemented yet
+            #         if args.input_mode == "vessel":
+            #             d['fpath'] = pad_truncated_dir + '/' + \
+            #                 d['subjectID'] + '_GcVessel.nii.gz'
+            #         elif args.input_mode == "ct":
+            #             d['fpath'] = pad_truncated_dir + \
+            #                 '/' + d['subjectID'] + '.nii.gz'
+            #         elif "ct_masked_by_vessel" in args.input_mode:
+            #             d['fpath'] = pad_truncated_dir + \
+            #                 '/' + d['subjectID'] + '.nii.gz'
+            #         else:
+            #             raise Exception(f"wrong input mode: {args.input_mode}")
 
         # random.shuffle(data)  # Four fold are not right !!!
         if args.test_pat == 'random_as_ori':

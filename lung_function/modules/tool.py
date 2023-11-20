@@ -8,7 +8,7 @@ import os
 import shutil
 import time
 from typing import Union, Tuple
-from medutils.medutils import icc
+from lung_function.modules.compute_metrics import icc, metrics
 from mlflow.tracking import MlflowClient
 import sys
 import numpy as np
@@ -792,3 +792,42 @@ def record_artifacts(outfile):
     else:
         print(f"No output file, no log artifacts")
         return None
+    
+def log_all_metrics(all_folds_id_ls, current_id, experiment):
+    log_metrics_all_folds_average(all_folds_id_ls, current_id, experiment)
+    
+    fold_ex_dt = {0: current_id, 
+                        1: all_folds_id_ls[0], 
+                        2: all_folds_id_ls[1], 
+                        3: all_folds_id_ls[2], 
+                        4: all_folds_id_ls[3]}
+    
+    ensemble_4folds_testing(fold_ex_dt)  
+    ensemble_4folds_validation(fold_ex_dt)
+
+    for mode in ['valid', 'test']:
+        
+    
+        parent_dir = '/home/jjia/data/lung_function/lung_function/scripts/results/experiments/'
+        label_fpath = parent_dir + str(fold_ex_dt[0]) + f'/{mode}_label.csv'
+        pred_fpath = parent_dir + str(fold_ex_dt[0]) + f'/{mode}_pred.csv'
+        
+        # add icc
+        icc_value = icc(label_fpath, pred_fpath, ignore_1st_column=True)
+        icc_value_ensemble = {'ensemble_' + k:v  for k, v in icc_value.items()}  # update keys
+        print(icc_value_ensemble)
+        log_params(icc_value_ensemble)
+        
+        # add r
+        r_p_value = metrics(pred_fpath, label_fpath, ignore_1st_column=True)
+        r_p_value = txtprocess(r_p_value)
+
+        r_p_value_ensemble = {'ensemble_' + k:v  for k, v in r_p_value.items()}  # update keys
+        log_params(r_p_value_ensemble)
+
+        # add mae
+        mae_dict = mae(pred_fpath, label_fpath, ignore_1st_column=True)
+        mae_ensemble = {'ensemble_' + k:v for k, v in mae_dict.items()}
+        print(mae_ensemble)
+        log_params(mae_ensemble)    
+
