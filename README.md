@@ -14,4 +14,4 @@ Folder `lung_functiion` # the main source code.
 2. `run.py --epochs=300 --mode='train' ... ` more arguments can be found in `set_args.py`.
 
 ## How to download the dataset?
-The datasets used in this project can be viewed and downloaded by applying requests at Zenodo (https://zenodo.org/records/12120376). In accordance with local and institutional guidance and legal requirements, some terms of use are required to check during the application. After we carefully approve your application, we will send you an email with a valid downloading link with the password.”
+The datasets used in this project can be viewed and downloaded by applying requests at Zenodo (https://zenodo.org/records/12120376). In accordance with local and institutional guidance and legal requirements, some terms of use are required to check during the application. After we carefully approve your application, we will send you an email with a valid downloading link with the password. We are applying to make the dataset publicly available without restrictions, which will require some time for ethical approval.
