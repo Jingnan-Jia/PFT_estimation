@@ -13,3 +13,5 @@ Folder `lung_functiion` # the main source code.
 1. `sbatch script.sh` to submit job to slurm in your linux server.
 2. `run.py --epochs=300 --mode='train' ... ` more arguments can be found in `set_args.py`.
 
+## How to download the dataset?
+The datasets used in this project can be viewed and downloaded by applying requests at [Zenodo](https://zenodo.org/records/12120376) (some terms of use are required to check). After we approve your application, we will send you a email with a valid downloading link with the password. 
